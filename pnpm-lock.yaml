@@ -333,6 +333,9 @@ importers:
       esbuild:
         specifier: ^0.25.9
         version: 0.25.9
+      lucide-react:
+        specifier: ^0.309.0
+        version: 0.309.0(react@18.3.1)
       typescript:
         specifier: ^5.3.3
         version: 5.9.2
@@ -6547,7 +6550,6 @@ packages:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0
     dependencies:
       react: 18.3.1
-    dev: false
 
   /lzma-native@8.0.6:
     resolution: {integrity: sha512-09xfg67mkL2Lz20PrrDeNYZxzeW7ADtpYFbwSQh9U8+76RIzx5QsJBMy8qikv3hbUPfpy6hqwxt6FcGK81g9AA==}
@@ -7579,7 +7581,6 @@ packages:
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
-    dev: false
 
   /reactivity-store@0.3.11(react@18.3.1):
     resolution: {integrity: sha512-s21jwqVm1yJg4Gv1P/I09UVbnODJvK7JQiK6bNDBtZGgDqCF3m8hhMMkruWzA0B2uEGd9zNP2cWuE6opF50wqg==}

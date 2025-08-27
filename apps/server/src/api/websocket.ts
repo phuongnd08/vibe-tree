@@ -7,7 +7,9 @@ import {
   getGitDiff,
   getGitDiffStaged,
   addWorktree,
-  removeWorktree
+  removeWorktree,
+  listDirectories,
+  validatePath
 } from '@vibetree/core';
 
 interface Services {
@@ -308,6 +310,97 @@ export function setupWebSocketHandlers(wss: WebSocketServer, services: Services)
               ws.send(JSON.stringify({
                 type: 'error',
                 payload: { error: (error as Error).message },
+                id: message.id
+              }));
+            }
+            break;
+          }
+
+          case 'directory:list': {
+            try {
+              const { path } = message.payload;
+              
+              // Add input length validation
+              if (!path || typeof path !== 'string' || path.length > 1000) {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  payload: { error: 'Invalid path parameter' },
+                  id: message.id
+                }));
+                return;
+              }
+
+              // Validate the path first
+              const validation = await validatePath(path);
+              if (!validation.valid) {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  payload: { 
+                    error: 'Invalid path', 
+                    details: validation.error || 'Path is not accessible'
+                  },
+                  id: message.id
+                }));
+                return;
+              }
+
+              // List directories
+              const directories = await listDirectories(path);
+              
+              ws.send(JSON.stringify({
+                type: 'directory:list:response',
+                payload: { 
+                  path,
+                  directories,
+                  success: true
+                },
+                id: message.id
+              }));
+            } catch (error) {
+              console.error('WebSocket directory listing error:', error);
+              ws.send(JSON.stringify({
+                type: 'error',
+                payload: { 
+                  error: 'Directory operation failed'
+                },
+                id: message.id
+              }));
+            }
+            break;
+          }
+
+          case 'directory:validate': {
+            try {
+              const { path } = message.payload;
+              
+              // Add input length validation
+              if (!path || typeof path !== 'string' || path.length > 1000) {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  payload: { error: 'Invalid path parameter' },
+                  id: message.id
+                }));
+                return;
+              }
+
+              const validation = await validatePath(path);
+              
+              ws.send(JSON.stringify({
+                type: 'directory:validate:response',
+                payload: {
+                  path,
+                  validation,
+                  success: true
+                },
+                id: message.id
+              }));
+            } catch (error) {
+              console.error('WebSocket path validation error:', error);
+              ws.send(JSON.stringify({
+                type: 'error',
+                payload: { 
+                  error: 'Path validation failed'
+                },
                 id: message.id
               }));
             }

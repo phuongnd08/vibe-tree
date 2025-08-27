@@ -11,7 +11,10 @@ import { parseWorktrees, parseGitStatus } from './git-parser';
  */
 export function executeGitCommand(args: string[], cwd: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn('git', args, { cwd });
+    const child = spawn('git', args, { 
+      cwd,
+      env: process.env
+    });
     
     let stdout = '';
     let stderr = '';
@@ -29,6 +32,18 @@ export function executeGitCommand(args: string[], cwd: string): Promise<string> 
         resolve(stdout);
       } else {
         reject(new Error(stderr || `Git command failed: git ${args.join(' ')}`));
+      }
+    });
+
+    child.on('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') {
+        reject(new Error(
+          `Git executable not found. Please ensure git is installed and available in your PATH.\n` +
+          `Command attempted: git ${args.join(' ')}\n` +
+          `Current PATH: ${process.env.PATH}`
+        ));
+      } else {
+        reject(error);
       }
     });
   });
@@ -151,4 +166,21 @@ export async function isGitRepository(path: string): Promise<boolean> {
 export async function getCurrentBranch(worktreePath: string): Promise<string> {
   const output = await executeGitCommand(['rev-parse', '--abbrev-ref', 'HEAD'], worktreePath);
   return output.trim();
+}
+
+/**
+ * Check if git is available in the system PATH
+ * @returns True if git is available, false otherwise
+ */
+export async function isGitAvailable(): Promise<boolean> {
+  try {
+    await executeGitCommand(['--version'], process.cwd());
+    return true;
+  } catch (error: any) {
+    if (error.message?.includes('Git executable not found')) {
+      return false;
+    }
+    // If it's another error, git is probably available but something else went wrong
+    return true;
+  }
 }

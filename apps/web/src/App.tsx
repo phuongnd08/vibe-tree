@@ -10,11 +10,12 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { Sun, Moon, Plus, X, Terminal, GitBranch } from 'lucide-react';
 
 function App() {
-  const { projects, activeProjectId, addProject, removeProject, setActiveProject, getActiveProject, setSelectedTab, theme, setTheme } = useAppStore();
+  const { projects, activeProjectId, addProject, removeProject, setActiveProject, setSelectedTab, theme, setTheme } = useAppStore();
   const { connect } = useWebSocket();
   const [showProjectSelector, setShowProjectSelector] = useState(false);
   
-  const activeProject = getActiveProject();
+  // Get active project for future use
+  // const activeProject = getActiveProject();
 
   useEffect(() => {
     // Auto-connect on mount

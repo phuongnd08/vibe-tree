@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { ChevronLeft, RefreshCw, FileText } from 'lucide-react';
+import { RefreshCw, FileText } from 'lucide-react';
 import { DiffView, DiffModeEnum } from '@git-diff-view/react';
 import '@git-diff-view/react/styles/diff-view.css';
-import { useAppStore } from '../store';
+// import { useAppStore } from '../store';
 import { useWebSocket } from '../hooks/useWebSocket';
 import type { GitStatus } from '@vibetree/core';
 

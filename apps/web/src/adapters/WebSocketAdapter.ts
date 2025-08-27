@@ -10,6 +10,32 @@ import type {
   IDE
 } from '@vibetree/core';
 
+interface DirectoryInfo {
+  name: string;
+  path: string;
+  isGitRepo: boolean;
+}
+
+interface PathValidation {
+  valid: boolean;
+  exists: boolean;
+  isDirectory: boolean;
+  readable: boolean;
+  error?: string;
+}
+
+interface DirectoryListResponse {
+  path: string;
+  directories: DirectoryInfo[];
+  success: true;
+}
+
+interface PathValidationResponse {
+  path: string;
+  validation: PathValidation;
+  success: true;
+}
+
 export class WebSocketAdapter extends BaseAdapter {
   private ws: WebSocket | null = null;
   private messageHandlers: Map<string, (data: any) => void> = new Map();
@@ -193,9 +219,19 @@ export class WebSocketAdapter extends BaseAdapter {
   }
 
   async selectDirectory(): Promise<string | undefined> {
-    // Web client can't access local file system
-    // Would need to implement a server-side directory browser
-    throw new Error('Directory selection not available in web client');
+    // Web client directory selection would require server-side directory browser
+    // Use the new listDirectories() and validatePath() methods for directory browsing
+    throw new Error('Use listDirectories() and validatePath() for directory browsing in web client');
+  }
+
+  async listDirectories(path: string): Promise<DirectoryInfo[]> {
+    const result = await this.sendMessage<DirectoryListResponse>('directory:list', { path });
+    return result.directories;
+  }
+
+  async validatePath(path: string): Promise<PathValidation> {
+    const result = await this.sendMessage<PathValidationResponse>('directory:validate', { path });
+    return result.validation;
   }
 
   async getTheme(): Promise<'light' | 'dark'> {
