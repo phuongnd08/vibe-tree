@@ -72,6 +72,7 @@ Create `.env` files as needed:
 # apps/web/.env (optional)
 VITE_WS_URL=ws://192.168.1.100:3002  # For custom socket server
 VITE_PROJECT_PATH=/path/to/project    # Override project path
+VITE_ALLOWED_HOSTS=vibe-tree.example.com,code.claude.do # Comma-separated dev server allowed hosts
 
 # apps/server/.env (optional)
 PORT=3002                              # Socket server port
