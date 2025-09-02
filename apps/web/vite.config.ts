@@ -39,7 +39,8 @@ export default defineConfig(({ mode }) => {
     server: {
       port: parseInt(env.VITE_PORT || '3000', 10),
       host: '0.0.0.0', // Bind to all network interfaces for network access
-      allowedHosts: parsedAllowedHosts.length > 0 ? parsedAllowedHosts : ['.claude.do', 'code.claude.do'], // Allow Cloudflare tunnel hosts
+      // If not provided, Vite's default behavior applies (no extra allowed hosts)
+      allowedHosts: parsedAllowedHosts.length > 0 ? parsedAllowedHosts : undefined,
       hmr: {
         clientPort: 443 // Required for Cloudflare tunnel HTTPS connections
       },

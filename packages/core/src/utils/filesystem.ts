@@ -143,8 +143,11 @@ function shouldFilterDirectory(name: string): boolean {
  */
 export async function validatePath(inputPath: string): Promise<PathValidation> {
   try {
-    // First check if path is safe
-    if (!isSafePath(inputPath)) {
+    // Normalize the path first (handles ~ expansion)
+    const normalizedPath = normalizePath(inputPath);
+    
+    // First check if path is safe (using normalized path)
+    if (!isSafePath(normalizedPath)) {
       return {
         valid: false,
         exists: false,
@@ -153,8 +156,6 @@ export async function validatePath(inputPath: string): Promise<PathValidation> {
         error: 'Path contains invalid characters or traversal attempts'
       };
     }
-    
-    const normalizedPath = normalizePath(inputPath);
     
     // Check if path exists and is accessible
     try {

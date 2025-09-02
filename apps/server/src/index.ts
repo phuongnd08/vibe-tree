@@ -66,8 +66,8 @@ server.listen(parseInt(PORT.toString()), HOST, async () => {
   const webUrls = getNetworkUrls(3000, HOST); // Web app runs on port 3000
   
   console.log('\n╔════════════════════════════════════════════════════════╗');
-  console.log('║               VibeTree Services Started                   ║');
-  console.log('╚════════════════════════════════════════════════════════╝\n');
+  console.log(  '║               VibeTree Services Started                ║');
+  console.log(  '╚════════════════════════════════════════════════════════╝\n');
   
   console.log('📁 Project Path:', PROJECT_PATH);
   console.log();
