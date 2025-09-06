@@ -28,6 +28,10 @@ pnpm-debug.log*
 lerna-debug.log*
 *.log
 
+# Package manager locks (using pnpm)
+package-lock.json
+yarn.lock
+
 # Local env files
 .env
 .env*.local
