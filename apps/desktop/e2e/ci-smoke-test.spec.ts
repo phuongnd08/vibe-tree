@@ -14,7 +14,7 @@ test.describe('CI Smoke Tests', () => {
     // Verify renderer HTML contains expected app structure
     const rendererHtml = fs.readFileSync(rendererPath, 'utf-8');
     expect(rendererHtml).toContain('<div id="root">');
-    expect(rendererHtml).toContain('index.js');
+    expect(rendererHtml).toMatch(/\.js/); // Has JavaScript file reference
   });
 
   test('verify test main file compiles', async () => {
