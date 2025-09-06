@@ -6,8 +6,6 @@ interface TerminalManagerProps {
   selectedWorktree: string | null;
 }
 
-// Component cache to maintain terminal instances
-const terminalComponents = new Map<string, React.ComponentType>();
 
 export function TerminalManager({ worktrees, selectedWorktree }: TerminalManagerProps) {
   const [mountedTerminals, setMountedTerminals] = useState<Set<string>>(new Set());

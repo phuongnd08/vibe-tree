@@ -60,8 +60,8 @@ importers:
         specifier: ^0.11.0
         version: 0.11.0(@xterm/xterm@5.5.0)
       '@xterm/xterm':
-        specifier: ^5.5.0
-        version: 5.5.0
+        specifier: github:xtermjs/xterm.js
+        version: github.com/xtermjs/xterm.js/0d1e6b7a5e6053ab2073f77ebb2b2d80349d565b
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1
@@ -309,8 +309,8 @@ importers:
         specifier: ^0.11.0
         version: 0.11.0(@xterm/xterm@5.5.0)
       '@xterm/xterm':
-        specifier: ^5.5.0
-        version: 5.5.0
+        specifier: github:xtermjs/xterm.js
+        version: github.com/xtermjs/xterm.js/0d1e6b7a5e6053ab2073f77ebb2b2d80349d565b
       clsx:
         specifier: ^2.1.0
         version: 2.1.1
@@ -3488,7 +3488,7 @@ packages:
     peerDependencies:
       '@xterm/xterm': ^5.0.0
     dependencies:
-      '@xterm/xterm': 5.5.0
+      '@xterm/xterm': github.com/xtermjs/xterm.js/0d1e6b7a5e6053ab2073f77ebb2b2d80349d565b
     dev: false
 
   /@xterm/addon-serialize@0.13.0(@xterm/xterm@5.5.0):
@@ -3496,7 +3496,7 @@ packages:
     peerDependencies:
       '@xterm/xterm': ^5.0.0
     dependencies:
-      '@xterm/xterm': 5.5.0
+      '@xterm/xterm': github.com/xtermjs/xterm.js/0d1e6b7a5e6053ab2073f77ebb2b2d80349d565b
     dev: false
 
   /@xterm/addon-unicode11@0.8.0(@xterm/xterm@5.5.0):
@@ -3504,7 +3504,7 @@ packages:
     peerDependencies:
       '@xterm/xterm': ^5.0.0
     dependencies:
-      '@xterm/xterm': 5.5.0
+      '@xterm/xterm': github.com/xtermjs/xterm.js/0d1e6b7a5e6053ab2073f77ebb2b2d80349d565b
     dev: false
 
   /@xterm/addon-web-links@0.11.0(@xterm/xterm@5.5.0):
@@ -3512,11 +3512,7 @@ packages:
     peerDependencies:
       '@xterm/xterm': ^5.0.0
     dependencies:
-      '@xterm/xterm': 5.5.0
-    dev: false
-
-  /@xterm/xterm@5.5.0:
-    resolution: {integrity: sha512-hqJHYaQb5OptNunnyAnkHyM8aCjZ1MEIDTQu1iIbbTD/xops91NB5yq1ZK/dC2JDbVWtF23zUtl9JE2NqwT87A==}
+      '@xterm/xterm': github.com/xtermjs/xterm.js/0d1e6b7a5e6053ab2073f77ebb2b2d80349d565b
     dev: false
 
   /abbrev@1.1.1:
@@ -9423,4 +9419,10 @@ packages:
       '@types/react': 18.3.24
       react: 18.3.1
       use-sync-external-store: 1.5.0(react@18.3.1)
+    dev: false
+
+  github.com/xtermjs/xterm.js/0d1e6b7a5e6053ab2073f77ebb2b2d80349d565b:
+    resolution: {tarball: https://codeload.github.com/xtermjs/xterm.js/tar.gz/0d1e6b7a5e6053ab2073f77ebb2b2d80349d565b}
+    name: '@xterm/xterm'
+    version: 5.5.0
     dev: false
