@@ -1,12 +1,40 @@
 import { test, expect } from '@playwright/test';
 import { ElectronApplication, Page, _electron as electron } from 'playwright';
 import path from 'path';
+import fs from 'fs';
+import { execSync } from 'child_process';
+import os from 'os';
 
 test.describe('Terminal Arithmetic Test', () => {
   let electronApp: ElectronApplication;
   let page: Page;
+  let dummyRepoPath: string;
 
   test.beforeEach(async () => {
+    // Create a dummy git repository for testing
+    const timestamp = Date.now();
+    dummyRepoPath = path.join(os.tmpdir(), `dummy-repo-${timestamp}`);
+    
+    // Create the directory and initialize git repo
+    fs.mkdirSync(dummyRepoPath, { recursive: true });
+    execSync('git init', { cwd: dummyRepoPath });
+    execSync('git config user.email "test@example.com"', { cwd: dummyRepoPath });
+    execSync('git config user.name "Test User"', { cwd: dummyRepoPath });
+    
+    // Create a dummy file and make initial commit
+    fs.writeFileSync(path.join(dummyRepoPath, 'README.md'), '# Test Repository\n');
+    execSync('git add .', { cwd: dummyRepoPath });
+    execSync('git commit -m "Initial commit"', { cwd: dummyRepoPath });
+    
+    // Create main branch (some git versions don't create it by default)
+    try {
+      execSync('git branch -M main', { cwd: dummyRepoPath });
+    } catch (e) {
+      // Ignore if branch already exists
+    }
+    
+    console.log('Created dummy repo at:', dummyRepoPath);
+
     const testMainPath = path.join(__dirname, '../dist/main/test-index.js');
     console.log('Using test main file:', testMainPath);
 
@@ -22,6 +50,16 @@ test.describe('Terminal Arithmetic Test', () => {
     if (electronApp) {
       await electronApp.close();
     }
+    
+    // Clean up the dummy repository
+    if (dummyRepoPath && fs.existsSync(dummyRepoPath)) {
+      try {
+        fs.rmSync(dummyRepoPath, { recursive: true, force: true });
+        console.log('Cleaned up dummy repo');
+      } catch (e) {
+        console.error('Failed to clean up dummy repo:', e);
+      }
+    }
   });
 
   test('should open terminal window and execute arithmetic', async () => {
@@ -36,10 +74,7 @@ test.describe('Terminal Arithmetic Test', () => {
     const openButton = page.locator('button', { hasText: 'Open Project Folder' });
     await expect(openButton).toBeVisible();
 
-    // Mock the dialog to return the current repository path
-    const currentRepoPath = path.resolve(__dirname, '../../..');
-
-    // Mock the Electron dialog to return our test repository path
+    // Mock the Electron dialog to return our dummy repository path
     await electronApp.evaluate(async ({ dialog }, repoPath) => {
       dialog.showOpenDialog = async () => {
         return {
@@ -47,7 +82,7 @@ test.describe('Terminal Arithmetic Test', () => {
           filePaths: [repoPath]
         };
       };
-    }, currentRepoPath);
+    }, dummyRepoPath);
 
     // Click the open button which will trigger the mocked dialog
     await openButton.click();
@@ -55,16 +90,17 @@ test.describe('Terminal Arithmetic Test', () => {
     // Wait for worktree list to appear
     await page.waitForTimeout(3000);
 
-    // Try to find and click on the refs/heads/main worktree button
-    const mainWorktreeButton = page.locator('button').filter({ hasText: 'refs/heads/main' });
-    let worktreeButton = mainWorktreeButton;
-
-    // If main branch not found, try other branches
-    if (await mainWorktreeButton.count() === 0) {
-      const anyWorktreeButton = page.locator('button').filter({ hasText: /refs\/heads\// });
-      if (await anyWorktreeButton.count() > 0) {
-        worktreeButton = anyWorktreeButton.first();
-      }
+    // Try to find the worktree button - in the dummy repo it should be refs/heads/main or refs/heads/master
+    let worktreeButton = page.locator('button').filter({ hasText: 'refs/heads/main' });
+    
+    // If main not found, try master
+    if (await worktreeButton.count() === 0) {
+      worktreeButton = page.locator('button').filter({ hasText: 'refs/heads/master' });
+    }
+    
+    // If still not found, try any refs/heads button
+    if (await worktreeButton.count() === 0) {
+      worktreeButton = page.locator('button').filter({ hasText: /refs\/heads\// }).first();
     }
 
     const worktreeCount = await worktreeButton.count();
