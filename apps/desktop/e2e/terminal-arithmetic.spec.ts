@@ -54,33 +54,16 @@ test.describe('Terminal Arithmetic Test', () => {
     // Wait for worktree list to appear (app loads git worktrees)
     await page.waitForTimeout(3000);
     
-    // Look for any clickable element that might be a worktree
-    // The current branch name is "test-terminal" based on git status
-    const possibleSelectors = [
-      'button:has-text("test-terminal")',
-      'div:has-text("test-terminal")',
-      '[class*="worktree"]:has-text("test-terminal")',
-      'button:has-text("main")',
-      'div:has-text("main")',
-      '[role="button"]'
-    ];
-    
-    let clicked = false;
-    for (const selector of possibleSelectors) {
-      const elements = await page.locator(selector).count();
-      if (elements > 0) {
-        console.log(`Found ${elements} elements matching: ${selector}`);
-        await page.locator(selector).first().click();
-        clicked = true;
-        console.log(`✓ Clicked worktree with selector: ${selector}`);
-        break;
-      }
-    }
-    
-    if (!clicked) {
-      // If no worktree found, take a screenshot and try to proceed anyway
+    // Click on the main branch worktree
+    const mainWorktreeButton = page.locator('button:has-text("main")');
+    try {
+      await mainWorktreeButton.waitFor({ timeout: 5000 });
+      await mainWorktreeButton.click();
+      console.log('✓ Clicked main worktree button');
+    } catch (e) {
+      // If main worktree not found, take a screenshot for debugging
       await page.screenshot({ path: 'no-worktree-found.png' });
-      console.log('⚠ No worktree element found, screenshot saved');
+      console.log('⚠ Main worktree button not found, screenshot saved');
     }
     
     // Wait for terminal to initialize
