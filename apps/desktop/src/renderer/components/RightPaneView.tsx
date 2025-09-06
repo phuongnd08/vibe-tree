@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { ClaudeTerminal } from './ClaudeTerminal';
+import { VSCodeTerminal } from '@vibetree/ui';
 import { GitDiffView } from './GitDiffView';
 import { Terminal, GitBranch } from 'lucide-react';
 
@@ -43,10 +43,23 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
           value="terminal"
           className="flex-1 m-0 h-full"
         >
-          <ClaudeTerminal 
-            worktreePath={worktreePath} 
-            projectId={projectId}
-            theme={theme}
+          <VSCodeTerminal 
+            shellLaunchConfig={{
+              cwd: worktreePath,
+              name: `Terminal - ${worktreePath.split('/').pop()}`
+            }}
+            configuration={{
+              theme: theme === 'light' ? {
+                background: '#ffffff',
+                foreground: '#000000',
+                cursor: '#000000'
+              } : {
+                background: '#1e1e1e',
+                foreground: '#cccccc',
+                cursor: '#ffffff'
+              }
+            }}
+            className="h-full"
           />
         </TabsContent>
 

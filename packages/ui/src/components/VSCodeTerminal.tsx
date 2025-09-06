@@ -2,16 +2,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   TerminalService,
   TerminalConfigurationService,
-  ITerminalInstance,
-  IShellLaunchConfig,
-  ITerminalConfiguration
+  type ITerminalService,
+  type ITerminalInstance,
+  type IShellLaunchConfig,
+  type ITerminalConfiguration
 } from '@vibetree/core';
 import './VSCodeTerminal.css';
 
 export interface VSCodeTerminalProps {
   shellLaunchConfig?: IShellLaunchConfig;
   configuration?: Partial<ITerminalConfiguration>;
-  onReady?: (service: TerminalService) => void;
+  onReady?: (service: ITerminalService) => void;
   className?: string;
 }
 
@@ -22,40 +23,47 @@ export const VSCodeTerminal: React.FC<VSCodeTerminalProps> = ({
   className = ''
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [terminalService, setTerminalService] = useState<TerminalService | null>(null);
+  const [terminalService, setTerminalService] = useState<ITerminalService | null>(null);
   const [activeInstance, setActiveInstance] = useState<ITerminalInstance | null>(null);
   const [instances, setInstances] = useState<ITerminalInstance[]>([]);
   
   useEffect(() => {
-    const configService = new TerminalConfigurationService(configuration);
-    const service = new TerminalService(undefined, configService);
-    
-    setTerminalService(service);
-    
-    service.onDidCreateInstance((instance) => {
-      setInstances(prev => [...prev, instance]);
-    });
-    
-    service.onDidDisposeInstance((instance) => {
-      setInstances(prev => prev.filter(i => i.id !== instance.id));
-    });
-    
-    service.onDidChangeActiveInstance((instance) => {
-      setActiveInstance(instance || null);
-    });
-    
-    service.createTerminal(shellLaunchConfig).then((instance) => {
-      if (containerRef.current) {
-        instance.attachToElement(containerRef.current);
+    // Initialize terminal service
+    const initializeTerminal = async () => {
+      try {
+        const configService = new TerminalConfigurationService(configuration);
+        const service = new TerminalService(undefined, configService);
+        setTerminalService(service);
+      
+        service.onDidCreateInstance((instance: ITerminalInstance) => {
+          setInstances(prev => [...prev, instance]);
+        });
+        
+        service.onDidDisposeInstance((instance: ITerminalInstance) => {
+          setInstances(prev => prev.filter(i => i.id !== instance.id));
+        });
+        
+        service.onDidChangeActiveInstance((instance: ITerminalInstance | undefined) => {
+          setActiveInstance(instance || null);
+        });
+        
+        const instance = await service.createTerminal(shellLaunchConfig);
+        if (containerRef.current) {
+          await instance.attachToElement(containerRef.current);
+        }
+        
+        if (onReady) {
+          onReady(service);
+        }
+      } catch (error) {
+        console.error('Failed to initialize terminal service:', error);
       }
-    });
+    };
     
-    if (onReady) {
-      onReady(service);
-    }
+    initializeTerminal();
     
     return () => {
-      service.dispose();
+      terminalService?.dispose();
     };
   }, []);
   

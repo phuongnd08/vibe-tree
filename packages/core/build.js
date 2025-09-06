@@ -26,7 +26,19 @@ await build({
   format: 'esm',
   platform: 'node',
   target: 'node18',
-  external: ['child_process', 'path', 'crypto'],
+  external: [
+    'child_process', 
+    'path', 
+    'crypto',
+    '@xterm/xterm',
+    '@xterm/addon-fit',
+    '@xterm/addon-search',
+    '@xterm/addon-serialize',
+    '@xterm/addon-unicode11',
+    '@xterm/addon-web-links',
+    '@xterm/addon-webgl',
+    'vscode-jsonrpc'
+  ],
   sourcemap: true,
 });
 
@@ -39,7 +51,19 @@ await build({
   format: 'cjs',
   platform: 'node',
   target: 'node18',
-  external: ['child_process', 'path', 'crypto'],
+  external: [
+    'child_process', 
+    'path', 
+    'crypto',
+    '@xterm/xterm',
+    '@xterm/addon-fit',
+    '@xterm/addon-search',
+    '@xterm/addon-serialize',
+    '@xterm/addon-unicode11',
+    '@xterm/addon-web-links',
+    '@xterm/addon-webgl',
+    'vscode-jsonrpc'
+  ],
   sourcemap: true,
 });
 

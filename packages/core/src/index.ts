@@ -7,8 +7,9 @@ export { CommunicationAdapter, BaseAdapter } from './adapters/CommunicationAdapt
 // Export services
 export { ShellSessionManager } from './services/ShellSessionManager';
 
-// Export terminal architecture
-export * from './terminal';
+// Export terminal types and interfaces only (no browser dependencies)
+// Browser-specific implementations should be imported from the browser build
+export * from './terminal/common/terminal';
 
 // Export utilities
 export * from './utils/git-parser';
