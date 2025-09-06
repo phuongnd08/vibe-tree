@@ -215,11 +215,7 @@ jobs:
       run: pnpm --filter @vibetree/desktop exec electron-rebuild || true
 
     - name: Run e2e tests
-      run: |
-        # Run smoke tests
-        pnpm --filter @vibetree/desktop exec playwright test ci-smoke-test.spec.ts
-        # Run full tests
-        pnpm --filter @vibetree/desktop exec playwright test final-test.spec.ts --reporter=list || echo "Full e2e tests failed, but smoke tests passed"
+      run: pnpm --filter @vibetree/desktop exec playwright test --reporter=list
       env:
         CI: true
         DISPLAY: :99
