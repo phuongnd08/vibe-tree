@@ -154,7 +154,8 @@ export const Terminal: React.FC<TerminalProps> = ({
       scrollback,
       tabStopWidth,
       windowsMode: false,
-      allowProposedApi: true
+      allowProposedApi: true,
+      macOptionIsMeta: true
     });
 
     // Load addons for enhanced functionality
