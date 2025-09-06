@@ -176,6 +176,7 @@ export function WorktreePanel({ projectPath, selectedWorktree, onSelectWorktree,
               <button
                 onClick={() => onSelectWorktree(worktree.path)}
                 className="w-full text-left p-3 flex items-center gap-1.5"
+                data-worktree-branch={worktree.branch.replace('refs/heads/', '')}
               >
                 <GitBranch className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <div className="flex-1 min-w-0">

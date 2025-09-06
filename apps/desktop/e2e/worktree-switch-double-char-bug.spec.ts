@@ -5,13 +5,15 @@ import fs from 'fs';
 import { execSync } from 'child_process';
 import os from 'os';
 
-test.describe('Terminal Arithmetic Test', () => {
+test.describe('Worktree Switch Double Character Bug', () => {
   let electronApp: ElectronApplication;
   let page: Page;
   let dummyRepoPath: string;
+  let wt1Path: string;
+  let wt2Path: string;
 
   test.beforeEach(async () => {
-    // Create a dummy git repository for testing
+    // Create a dummy git repository with two worktrees
     const timestamp = Date.now();
     dummyRepoPath = path.join(os.tmpdir(), `dummy-repo-${timestamp}`);
     
@@ -26,14 +28,17 @@ test.describe('Terminal Arithmetic Test', () => {
     execSync('git add .', { cwd: dummyRepoPath });
     execSync('git commit -m "Initial commit"', { cwd: dummyRepoPath });
     
-    // Create main branch (some git versions don't create it by default)
-    try {
-      execSync('git branch -M main', { cwd: dummyRepoPath });
-    } catch (e) {
-      // Ignore if branch already exists
-    }
+    // Create worktree directories
+    wt1Path = path.join(os.tmpdir(), `dummy-repo-wt1-${timestamp}`);
+    wt2Path = path.join(os.tmpdir(), `dummy-repo-wt2-${timestamp}`);
     
-    console.log('Created dummy repo at:', dummyRepoPath);
+    // Create wt1 worktree with a new branch
+    execSync(`git worktree add -b wt1 "${wt1Path}"`, { cwd: dummyRepoPath });
+    
+    // Create wt2 worktree with a new branch
+    execSync(`git worktree add -b wt2 "${wt2Path}"`, { cwd: dummyRepoPath });
+    
+    console.log('Created dummy repo with wt1 and wt2 branches at:', dummyRepoPath);
 
     const testMainPath = path.join(__dirname, '../dist/main/test-index.js');
     console.log('Using test main file:', testMainPath);
@@ -51,6 +56,25 @@ test.describe('Terminal Arithmetic Test', () => {
       await electronApp.close();
     }
     
+    // Clean up the worktree directories first
+    if (wt1Path && fs.existsSync(wt1Path)) {
+      try {
+        fs.rmSync(wt1Path, { recursive: true, force: true });
+        console.log('Cleaned up wt1 worktree');
+      } catch (e) {
+        console.error('Failed to clean up wt1 worktree:', e);
+      }
+    }
+    
+    if (wt2Path && fs.existsSync(wt2Path)) {
+      try {
+        fs.rmSync(wt2Path, { recursive: true, force: true });
+        console.log('Cleaned up wt2 worktree');
+      } catch (e) {
+        console.error('Failed to clean up wt2 worktree:', e);
+      }
+    }
+    
     // Clean up the dummy repository
     if (dummyRepoPath && fs.existsSync(dummyRepoPath)) {
       try {
@@ -62,7 +86,7 @@ test.describe('Terminal Arithmetic Test', () => {
     }
   });
 
-  test('should open terminal window and execute arithmetic', async () => {
+  test('should NOT display double characters when switching between worktrees', async () => {
     test.setTimeout(60000);
 
     await page.waitForLoadState('domcontentloaded');
@@ -90,27 +114,39 @@ test.describe('Terminal Arithmetic Test', () => {
     // Wait for worktree list to appear
     await page.waitForTimeout(3000);
 
-    // Try to find the worktree button using data attribute - in the dummy repo it should be main or master
-    let worktreeButton = page.locator('button[data-worktree-branch="main"]');
+    // Use the reliable data-worktree-branch selector
+    const wt1Button = page.locator('button[data-worktree-branch="wt1"]');
+    const wt1Count = await wt1Button.count();
     
-    // If main not found, try master
-    if (await worktreeButton.count() === 0) {
-      worktreeButton = page.locator('button[data-worktree-branch="master"]');
+    if (wt1Count === 0) {
+      throw new Error('Could not find wt1 worktree button');
     }
     
-    // If still not found, try any worktree button with data attribute
-    if (await worktreeButton.count() === 0) {
-      worktreeButton = page.locator('button[data-worktree-branch]').first();
+    console.log('Found wt1 worktree button');
+
+    // First click on wt1
+    console.log('Clicking on wt1...');
+    await wt1Button.click();
+    await page.waitForTimeout(2000);
+
+    // Find and click on wt2 using the data attribute
+    const wt2Button = page.locator('button[data-worktree-branch="wt2"]');
+    const wt2Count = await wt2Button.count();
+    
+    if (wt2Count === 0) {
+      throw new Error('Could not find wt2 worktree button');
     }
+    
+    console.log('Found wt2 worktree button');
 
-    const worktreeCount = await worktreeButton.count();
-    expect(worktreeCount).toBeGreaterThan(0);
+    console.log('Clicking on wt2...');
+    await wt2Button.click();
+    await page.waitForTimeout(2000);
 
-    // Click the worktree button to open the terminal
-    await worktreeButton.click();
-
-    // Wait for the terminal to load
-    await page.waitForTimeout(3000);
+    // Click back on wt1
+    console.log('Clicking back on wt1...');
+    await wt1Button.click();
+    await page.waitForTimeout(2000);
 
     // Find the terminal element
     const terminalSelectors = ['.xterm-screen', '.xterm', '.xterm-container'];
@@ -128,22 +164,25 @@ test.describe('Terminal Arithmetic Test', () => {
 
     // Click on the terminal to focus it
     await terminalElement!.click();
-
-    // Wait for focus and shell to be ready
     await page.waitForTimeout(1000);
 
-    // Type the arithmetic command
-    const command = 'echo $[101+202]';
-    await page.keyboard.type(command);
+    // Type "echo" command
+    console.log('Typing "echo" command...');
+    await page.keyboard.type('echo');
+    await page.waitForTimeout(1000);
 
-    // Press Enter to execute
-    await page.keyboard.press('Enter');
-
-    // Wait for the output to appear
-    await page.waitForTimeout(2000);
-
-    // Verify the output "303" appears in the terminal
+    // Get the terminal content
     const terminalContent = await page.locator('.xterm-screen').textContent();
-    expect(terminalContent).toContain('303');
+    console.log('Terminal content after typing "echo":', terminalContent);
+
+    // The bug causes "eecchhoo" to appear instead of "echo"
+    // This test should FAIL initially (demonstrating the bug exists)
+    // and PASS after the fix is applied
+    
+    // Check that the terminal does NOT contain the doubled characters
+    expect(terminalContent).not.toContain('eecchhoo');
+    
+    // Check that the terminal contains the correct single "echo"
+    expect(terminalContent).toContain('echo');
   });
 });
