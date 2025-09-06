@@ -304,6 +304,31 @@ importers:
         version: 7.3.0
 
   packages/core:
+    dependencies:
+      '@xterm/addon-fit':
+        specifier: ^0.10.0
+        version: 0.10.0(@xterm/xterm@5.6.0-beta.118)
+      '@xterm/addon-search':
+        specifier: ^0.16.0-beta.118
+        version: 0.16.0-beta.118(@xterm/xterm@5.6.0-beta.118)
+      '@xterm/addon-serialize':
+        specifier: ^0.14.0-beta.118
+        version: 0.14.0-beta.118(@xterm/xterm@5.6.0-beta.118)
+      '@xterm/addon-unicode11':
+        specifier: ^0.9.0-beta.118
+        version: 0.9.0-beta.118(@xterm/xterm@5.6.0-beta.118)
+      '@xterm/addon-web-links':
+        specifier: ^0.11.0
+        version: 0.11.0(@xterm/xterm@5.6.0-beta.118)
+      '@xterm/addon-webgl':
+        specifier: ^0.19.0-beta.118
+        version: 0.19.0-beta.118(@xterm/xterm@5.6.0-beta.118)
+      '@xterm/xterm':
+        specifier: ^5.6.0-beta.118
+        version: 5.6.0-beta.118
+      node-pty:
+        specifier: ^1.1.0-beta34
+        version: 1.1.0-beta9
     devDependencies:
       '@types/node':
         specifier: ^20.11.5

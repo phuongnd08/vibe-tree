@@ -254,10 +254,10 @@ export class TerminalProcess extends EventEmitter {
   private _getBashIntegration(): string {
     return `
 __vscode_prompt_cmd() {
-  printf "\\033]0;%s@%s:%s\\007" "\\${USER}" "\\${HOSTNAME%%.*}" "\\${PWD/#$HOME/\\~}"
-  printf "\\033]7;file://%s%s\\033\\\\" "\\${HOSTNAME}" "\\${PWD}"
+  printf "\\033]0;%s@%s:%s\\007" "\${USER}" "\${HOSTNAME%%.*}" "\${PWD/#$HOME/\\~}"
+  printf "\\033]7;file://%s%s\\033\\\\" "\${HOSTNAME}" "\${PWD}"
 }
-PROMPT_COMMAND="__vscode_prompt_cmd; \\${PROMPT_COMMAND}"
+PROMPT_COMMAND="__vscode_prompt_cmd; \${PROMPT_COMMAND}"
 `.trim();
   }
   
