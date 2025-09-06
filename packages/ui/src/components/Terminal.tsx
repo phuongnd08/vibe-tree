@@ -192,6 +192,8 @@ export const Terminal: React.FC<TerminalProps> = ({
     // Fit terminal to container after render
     setTimeout(() => {
       fitAddon.fit();
+      // Explicitly resize terminal to ensure PTY knows the dimensions
+      term.resize(term.cols, term.rows);
       term.focus();
     }, 10);
 
@@ -205,14 +207,34 @@ export const Terminal: React.FC<TerminalProps> = ({
     // Handle window resize
     const handleResize = () => {
       if (terminalRef.current && terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
+        // First, fit the terminal to the container
         fitAddon.fit();
+        
+        // Get the new dimensions after fitting
+        const newCols = term.cols;
+        const newRows = term.rows;
+        
+        // Explicitly resize the terminal to notify PTY of size change
+        // This is crucial for applications like vim to handle resize properly
+        term.resize(newCols, newRows);
+        
+        // Notify parent component of the resize
         if (onResize) {
-          onResize(term.cols, term.rows);
+          onResize(newCols, newRows);
         }
       }
     };
 
     window.addEventListener('resize', handleResize);
+
+    // Also observe container size changes using ResizeObserver
+    let resizeObserver: ResizeObserver | null = null;
+    if (terminalRef.current && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        handleResize();
+      });
+      resizeObserver.observe(terminalRef.current);
+    }
 
     // Handle terminal input
     const dataDisposable = term.onData((data) => {
@@ -224,6 +246,9 @@ export const Terminal: React.FC<TerminalProps> = ({
     // Cleanup on unmount
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       dataDisposable.dispose();
       term.dispose();
     };
@@ -251,7 +276,11 @@ export const Terminal: React.FC<TerminalProps> = ({
       blur: () => terminal.blur(),
       serialize: () => serializeAddonRef.current?.serialize(),
       fit: () => fitAddonRef.current?.fit(),
-      resize: (cols: number, rows: number) => terminal.resize(cols, rows)
+      resize: (cols: number, rows: number) => {
+        terminal.resize(cols, rows);
+        // Also fit after resize to ensure proper display
+        fitAddonRef.current?.fit();
+      }
     };
 
     return () => {
