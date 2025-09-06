@@ -1,5 +1,14 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 import { ipcMain, dialog } from 'electron';
+
+interface MockIpcMain {
+  handle: Mock;
+  handlers: Map<string, (...args: unknown[]) => unknown>;
+}
+
+interface MockDialog {
+  showOpenDialog: Mock;
+}
 
 // Mock electron modules
 vi.mock('electron', () => ({
@@ -13,14 +22,17 @@ vi.mock('electron', () => ({
 }));
 
 describe('Dialog Handler', () => {
+  const mockIpcMain = ipcMain as unknown as MockIpcMain;
+  const mockDialog = dialog as unknown as MockDialog;
+
   beforeEach(() => {
     vi.clearAllMocks();
     // Clear handlers
-    (ipcMain as any).handlers = new Map();
+    mockIpcMain.handlers = new Map();
     
     // Mock the handle method to store handlers
-    (ipcMain.handle as any).mockImplementation((channel: string, handler: Function) => {
-      (ipcMain as any).handlers.set(channel, handler);
+    mockIpcMain.handle.mockImplementation((channel: string, handler: (...args: unknown[]) => unknown) => {
+      mockIpcMain.handlers.set(channel, handler);
     });
   });
 
@@ -40,14 +52,14 @@ describe('Dialog Handler', () => {
     
     // Check if handler was registered
     expect(ipcMain.handle).toHaveBeenCalledWith('dialog:select-directory', expect.any(Function));
-    expect((ipcMain as any).handlers.has('dialog:select-directory')).toBe(true);
+    expect(mockIpcMain.handlers.has('dialog:select-directory')).toBe(true);
   });
 
   it('should return selected directory path when dialog is not cancelled', async () => {
     const mockPath = '/test/project/path';
     
     // Mock dialog response
-    (dialog.showOpenDialog as any).mockResolvedValue({
+    mockDialog.showOpenDialog.mockResolvedValue({
       canceled: false,
       filePaths: [mockPath]
     });
@@ -60,7 +72,7 @@ describe('Dialog Handler', () => {
       return result.filePaths[0];
     };
     
-    (ipcMain as any).handlers.set('dialog:select-directory', handler);
+    mockIpcMain.handlers.set('dialog:select-directory', handler);
     
     // Execute handler
     const result = await handler();
@@ -73,7 +85,7 @@ describe('Dialog Handler', () => {
 
   it('should return undefined when dialog is cancelled', async () => {
     // Mock dialog cancellation
-    (dialog.showOpenDialog as any).mockResolvedValue({
+    mockDialog.showOpenDialog.mockResolvedValue({
       canceled: true,
       filePaths: []
     });
@@ -86,7 +98,7 @@ describe('Dialog Handler', () => {
       return result.filePaths[0];
     };
     
-    (ipcMain as any).handlers.set('dialog:select-directory', handler);
+    mockIpcMain.handlers.set('dialog:select-directory', handler);
     
     // Execute handler
     const result = await handler();
@@ -99,7 +111,7 @@ describe('Dialog Handler', () => {
     const errorMessage = 'Dialog error';
     
     // Mock dialog error
-    (dialog.showOpenDialog as any).mockRejectedValue(new Error(errorMessage));
+    mockDialog.showOpenDialog.mockRejectedValue(new Error(errorMessage));
     
     // Register handler with error handling
     const handler = async () => {
@@ -114,7 +126,7 @@ describe('Dialog Handler', () => {
       }
     };
     
-    (ipcMain as any).handlers.set('dialog:select-directory', handler);
+    mockIpcMain.handlers.set('dialog:select-directory', handler);
     
     // Execute handler
     const result = await handler();
