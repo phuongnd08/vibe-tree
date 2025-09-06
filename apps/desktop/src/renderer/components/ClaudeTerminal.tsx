@@ -108,7 +108,6 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
     // Add addons
     const fitAddon = new FitAddon();
     fitAddonRef.current = fitAddon;
-    term.loadAddon(fitAddon);
     
     // Configure WebLinksAddon with custom handler for opening links
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
@@ -127,29 +126,61 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
     // Open terminal in container
     term.open(terminalRef.current);
     
+    // Load fit addon after terminal is opened
+    term.loadAddon(fitAddon);
+    
     // Activate unicode addon
     unicode11Addon.activate(term);
     
     // Fit and focus after a small delay to ensure proper rendering
     setTimeout(() => {
-      fitAddon.fit();
-      term.focus();
-    }, 10);
+      try {
+        // Ensure the terminal container has dimensions before fitting
+        if (terminalRef.current && terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
+          fitAddon.fit();
+        }
+        term.focus();
+      } catch (err) {
+        console.error('Error during initial fit:', err);
+        // Try to focus without fit
+        term.focus();
+      }
+    }, 100);
 
     setTerminal(term);
+
+    // Handle bell character - play sound when bell is triggered
+    const bellDisposable = term.onBell(() => {
+      console.log('Bell triggered in ClaudeTerminal!');
+      // Create an audio element and play the bell sound
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhCSuBzvLZijYIG2m98OGiUSATVqzn77FgGwc4k9n1znksBSh+zPLaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSN3yfDTgDAJInfN9NuLOgoUYrfp56ZSFApGn+DyvmwhCSuBzvLZijYIG2m98OGiUSATVqzn77FgGwc4k9n1znksBSh+zPLaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQ==');
+      audio.volume = 0.5; // Set volume to 50%
+      console.log('Playing bell sound at 50% volume...');
+      audio.play()
+        .then(() => {
+          console.log('Bell sound played successfully');
+        })
+        .catch(err => {
+          console.error('Bell sound playback failed:', err);
+        });
+    });
 
     // Handle window resize
     const handleResize = () => {
       // Only fit if the terminal container has dimensions
       if (terminalRef.current && terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
-        fitAddon.fit();
-        // Resize the PTY to match terminal dimensions
-        if (processIdRef.current) {
-          window.electronAPI.shell.resize(
-            processIdRef.current, 
-            term.cols, 
-            term.rows
-          );
+        try {
+          fitAddon.fit();
+          // Resize the PTY to match terminal dimensions
+          if (processIdRef.current) {
+            window.electronAPI.shell.resize(
+              processIdRef.current, 
+              term.cols, 
+              term.rows
+            );
+          }
+        } catch (err) {
+          console.error('Error during resize fit:', err);
         }
       }
     };
@@ -161,6 +192,7 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
       // Clean up listeners
       removeListenersRef.current.forEach(remove => remove());
       removeListenersRef.current = [];
+      bellDisposable.dispose();
       term.dispose();
     };
   }, [theme]);
@@ -222,12 +254,35 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
         
         // Set initial PTY size
         if (fitAddonRef.current && terminalRef.current) {
-          fitAddonRef.current.fit();
-          window.electronAPI.shell.resize(
-            result.processId!,
-            terminal.cols,
-            terminal.rows
-          );
+          // Give the terminal time to render before fitting
+          setTimeout(() => {
+            try {
+              // Ensure the terminal container has dimensions
+              if (terminalRef.current && terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
+                fitAddonRef.current!.fit();
+                window.electronAPI.shell.resize(
+                  result.processId!,
+                  terminal.cols,
+                  terminal.rows
+                );
+              } else {
+                // Use default dimensions if container not ready
+                window.electronAPI.shell.resize(
+                  result.processId!,
+                  80,
+                  24
+                );
+              }
+            } catch (err) {
+              console.error('Error during PTY resize fit:', err);
+              // Still try to resize with default cols/rows
+              window.electronAPI.shell.resize(
+                result.processId!,
+                80,
+                24
+              );
+            }
+          }, 100);
         }
 
         // Handle terminal input - simply pass it to the PTY
