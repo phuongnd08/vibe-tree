@@ -115,7 +115,15 @@ jobs:
     - name: Rebuild Electron native modules
       run: pnpm --filter @vibetree/desktop exec electron-rebuild || true
 
-    - name: Run e2e tests
+    - name: Run e2e tests (Windows)
+      if: runner.os == 'Windows'
+      run: pnpm --filter @vibetree/desktop exec playwright test ci-smoke-test.spec.ts
+      env:
+        CI: true
+        ELECTRON_DISABLE_SANDBOX: 1
+
+    - name: Run e2e tests (Linux/macOS)
+      if: runner.os != 'Windows'
       run: |
         # Run smoke tests in CI (simpler, more reliable)
         pnpm --filter @vibetree/desktop exec playwright test ci-smoke-test.spec.ts
