@@ -9,8 +9,15 @@ let page: Page;
 test.describe('Project Opening Feature', () => {
   test.beforeEach(async () => {
     // Launch Electron app
+    const args = [path.join(__dirname, '../../dist/main/index.js')];
+    
+    // Add no-sandbox flag for CI environments
+    if (process.env.CI) {
+      args.unshift('--no-sandbox');
+    }
+    
     app = await electron.launch({
-      args: [path.join(__dirname, '../../dist/main/index.js')],
+      args,
       env: {
         ...process.env,
         NODE_ENV: 'test'
