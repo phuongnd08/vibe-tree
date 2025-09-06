@@ -35,6 +35,13 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'pnpm'
     
+    # Install xvfb for headless testing on Linux
+    - name: Install xvfb (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+    
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
     
@@ -62,3 +69,29 @@ jobs:
     - name: Build desktop app (non-Linux)
       if: matrix.os != 'ubuntu-latest'
       run: pnpm --filter @vibetree/desktop build
+    
+    # Run unit tests for desktop app
+    - name: Run Desktop Unit Tests
+      run: pnpm --filter @vibetree/desktop test:unit
+    
+    # Install Playwright browsers for E2E tests
+    - name: Install Playwright Browsers
+      if: matrix.os != 'windows-latest'
+      run: pnpm --filter @vibetree/desktop exec playwright install chromium
+    
+    # Run E2E tests for desktop app (headless on CI)
+    - name: Run Desktop E2E Tests (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        cd apps/desktop
+        xvfb-run -a pnpm test:e2e
+      env:
+        CI: true
+    
+    - name: Run Desktop E2E Tests (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        cd apps/desktop
+        pnpm test:e2e
+      env:
+        CI: true
