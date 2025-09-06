@@ -37,8 +37,7 @@ function createWindow() {
   
   mainWindow.loadFile(rendererPath);
   
-  // Open DevTools for debugging
-  mainWindow.webContents.openDevTools();
+  // Don't open DevTools in tests as it can interfere with content detection
 
   mainWindow.on('closed', () => {
     mainWindow = null;
