@@ -7,6 +7,9 @@ export { CommunicationAdapter, BaseAdapter } from './adapters/CommunicationAdapt
 // Export services
 export { ShellSessionManager } from './services/ShellSessionManager';
 
+// Export terminal architecture
+export * from './terminal';
+
 // Export utilities
 export * from './utils/git-parser';
 export * from './utils/shell';

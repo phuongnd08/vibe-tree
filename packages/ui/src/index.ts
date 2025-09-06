@@ -2,6 +2,10 @@
 export { Terminal } from './components/Terminal';
 export type { TerminalProps, TerminalConfig } from './components/Terminal';
 
+// Export VSCode-style terminal component
+export { VSCodeTerminal } from './components/VSCodeTerminal';
+export type { VSCodeTerminalProps } from './components/VSCodeTerminal';
+
 // Export tabs component
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './components/Tabs';
 export type { TabsProps, TabsListProps, TabsTriggerProps, TabsContentProps } from './components/Tabs';

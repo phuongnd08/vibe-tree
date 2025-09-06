@@ -1,0 +1,178 @@
+.vscode-terminal-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: #1e1e1e;
+  color: #cccccc;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+}
+
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #252526;
+  border-bottom: 1px solid #3c3c3c;
+  min-height: 35px;
+  padding: 0 10px;
+}
+
+.terminal-tabs {
+  display: flex;
+  flex: 1;
+  overflow-x: auto;
+  gap: 1px;
+}
+
+.terminal-tab {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background-color: #2d2d30;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  min-width: fit-content;
+  transition: background-color 0.1s;
+}
+
+.terminal-tab:hover {
+  background-color: #3e3e42;
+}
+
+.terminal-tab.active {
+  background-color: #1e1e1e;
+  border-bottom-color: #1e1e1e;
+}
+
+.terminal-tab-title {
+  font-size: 13px;
+  margin-right: 8px;
+}
+
+.terminal-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: #cccccc;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  opacity: 0.7;
+  transition: opacity 0.1s, background-color 0.1s;
+}
+
+.terminal-tab-close:hover {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.terminal-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.terminal-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #cccccc;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 14px;
+  transition: background-color 0.1s;
+}
+
+.terminal-action:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.terminal-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.terminal-body {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background-color: #1e1e1e;
+}
+
+.terminal-instance {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.terminal-instance.split {
+  width: 50%;
+}
+
+.terminal-instance .xterm {
+  height: 100%;
+  width: 100%;
+}
+
+.terminal-instance .xterm-viewport {
+  background-color: transparent !important;
+}
+
+.terminal-instance .xterm-screen {
+  padding: 4px;
+}
+
+@media (prefers-color-scheme: light) {
+  .vscode-terminal-container {
+    background-color: #ffffff;
+    color: #333333;
+  }
+  
+  .terminal-header {
+    background-color: #f3f3f3;
+    border-bottom-color: #e5e5e5;
+  }
+  
+  .terminal-tab {
+    background-color: #ececec;
+  }
+  
+  .terminal-tab:hover {
+    background-color: #e1e1e1;
+  }
+  
+  .terminal-tab.active {
+    background-color: #ffffff;
+    border-bottom-color: #ffffff;
+  }
+  
+  .terminal-body {
+    background-color: #ffffff;
+  }
+  
+  .terminal-tab-close,
+  .terminal-action {
+    color: #333333;
+  }
+  
+  .terminal-tab-close:hover,
+  .terminal-action:hover:not(:disabled) {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+}
