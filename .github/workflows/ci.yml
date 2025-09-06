@@ -99,22 +99,28 @@ jobs:
         cd apps/desktop
         npx tsc src/main/test-index.ts --outDir dist/main --target es2020 --module commonjs --esModuleInterop --allowSyntheticDefaultImports --resolveJsonModule
 
-    - name: Install Playwright browsers
-      run: pnpm --filter @vibetree/desktop exec playwright install
+    - name: Install Playwright browsers and dependencies
+      run: |
+        pnpm --filter @vibetree/desktop exec playwright install
+        pnpm --filter @vibetree/desktop exec playwright install-deps
 
     - name: Setup virtual display (Linux only)
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y xvfb
+        sudo apt-get install -y xvfb libnss3 libatk-bridge2.0-0 libdrm-dev libxcomposite-dev libxdamage1 libxfixes-dev libxrandr-dev libgbm-dev libxss1 libasound2
         export DISPLAY=:99
         Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+
+    - name: Rebuild Electron native modules
+      run: pnpm --filter @vibetree/desktop exec electron-rebuild || true
 
     - name: Run e2e tests
       run: pnpm --filter @vibetree/desktop exec playwright test final-test.spec.ts
       env:
         CI: true
         DISPLAY: ${{ runner.os == 'Linux' && ':99' || '' }}
+        ELECTRON_DISABLE_SANDBOX: 1
 
     - name: Upload test results
       uses: actions/upload-artifact@v4
