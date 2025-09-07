@@ -243,6 +243,40 @@ export const Terminal: React.FC<TerminalProps> = ({
       }
     });
 
+    // Custom mouse wheel handler to prevent arrow key emulation in alternate buffer
+    // This ensures mouse scroll only scrolls the terminal viewport, not send arrow keys
+    const handleWheel = (event: WheelEvent) => {
+      // Check if we're in alternate buffer (like vim, less, etc)
+      // In alternate buffer, we want to prevent default to avoid arrow key simulation
+      // In normal buffer, let the terminal handle scrolling naturally
+      const buffer = term.buffer.active;
+      const isAlternateBuffer = buffer.type === 'alternate';
+      
+      if (isAlternateBuffer) {
+        // In alternate buffer (vim, less, etc), prevent arrow key emulation
+        event.preventDefault();
+        event.stopPropagation();
+        
+        // Calculate scroll amount (normalize across different browsers/platforms)
+        const scrollLines = Math.abs(event.deltaY) > 0 ? Math.sign(event.deltaY) * 3 : 0;
+        
+        if (scrollLines !== 0) {
+          // Use xterm's built-in scrolling API
+          term.scrollLines(scrollLines);
+        }
+        
+        return false;
+      }
+      // In normal buffer, let the terminal handle scrolling naturally
+      // This preserves the native scrollbar functionality
+      return true;
+    };
+
+    // Attach wheel event listener to terminal element
+    if (terminalRef.current) {
+      terminalRef.current.addEventListener('wheel', handleWheel, { passive: false });
+    }
+
     // Handle bell character - play sound when bell is triggered
     const bellDisposable = term.onBell(() => {
       // Create an audio element and play the bell sound
@@ -259,6 +293,9 @@ export const Terminal: React.FC<TerminalProps> = ({
       window.removeEventListener('resize', handleResize);
       if (resizeObserver) {
         resizeObserver.disconnect();
+      }
+      if (terminalRef.current) {
+        terminalRef.current.removeEventListener('wheel', handleWheel);
       }
       dataDisposable.dispose();
       bellDisposable.dispose();

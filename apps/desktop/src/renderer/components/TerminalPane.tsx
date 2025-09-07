@@ -109,7 +109,8 @@ export function TerminalPane({
       tabStopWidth: 4,
       windowsMode: false,
       allowProposedApi: true,
-      macOptionIsMeta: true
+      macOptionIsMeta: true,
+      scrollOnUserInput: false // Don't auto-scroll on user input to preserve scroll position
     });
 
     // Add addons
@@ -157,6 +158,40 @@ export function TerminalPane({
       });
     });
 
+    // Custom mouse wheel handler to prevent arrow key emulation in alternate buffer
+    // This ensures mouse scroll only scrolls the terminal viewport, not send arrow keys
+    const handleWheel = (event: WheelEvent) => {
+      // Check if we're in alternate buffer (like vim, less, etc)
+      // In alternate buffer, we want to prevent default to avoid arrow key simulation
+      // In normal buffer, let the terminal handle scrolling naturally
+      const buffer = term.buffer.active;
+      const isAlternateBuffer = buffer.type === 'alternate';
+      
+      if (isAlternateBuffer) {
+        // In alternate buffer (vim, less, etc), prevent arrow key emulation
+        event.preventDefault();
+        event.stopPropagation();
+        
+        // Calculate scroll amount (normalize across different browsers/platforms)
+        const scrollLines = Math.abs(event.deltaY) > 0 ? Math.sign(event.deltaY) * 3 : 0;
+        
+        if (scrollLines !== 0) {
+          // Use xterm's built-in scrolling API
+          term.scrollLines(scrollLines);
+        }
+        
+        return false;
+      }
+      // In normal buffer, let the terminal handle scrolling naturally
+      // This preserves the native scrollbar functionality
+      return true;
+    };
+
+    // Attach wheel event listener to terminal element
+    if (terminalRef.current) {
+      terminalRef.current.addEventListener('wheel', handleWheel, { passive: false });
+    }
+
     // Handle window resize
     const handleResize = () => {
       if (terminalRef.current && terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
@@ -179,6 +214,9 @@ export function TerminalPane({
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (terminalRef.current) {
+        terminalRef.current.removeEventListener('wheel', handleWheel);
+      }
       removeListenersRef.current.forEach(remove => remove());
       removeListenersRef.current = [];
       bellDisposable.dispose();
@@ -222,13 +260,15 @@ export function TerminalPane({
           terminal.clear();
         } else {
           const cachedState = terminalStateCache.get(result.processId!);
-          terminal.clear();
+          // Don't clear when restoring - this preserves scrollback
+          // The cached state already contains the full terminal content
           
-          setTimeout(() => {
-            if (cachedState) {
-              terminal.write(cachedState);
-            }
-          }, 50);
+          if (cachedState) {
+            // Reset terminal to home position without clearing buffer
+            terminal.reset();
+            // Write the cached state which includes scrollback
+            terminal.write(cachedState);
+          }
         }
         
         terminal.focus();

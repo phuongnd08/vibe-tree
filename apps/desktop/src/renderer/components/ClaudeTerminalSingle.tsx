@@ -1,17 +1,10 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import { WebLinksAddon } from '@xterm/addon-web-links';
-import { Unicode11Addon } from '@xterm/addon-unicode11';
-import { SerializeAddon } from '@xterm/addon-serialize';
+import { useEffect, useRef, useState } from 'react';
+import { terminalManager, type TerminalInstance } from '../services/TerminalManager';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Code2, Columns2, X } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import '@xterm/xterm/css/xterm.css';
-
-// Cache terminal state per worktree:terminalId combination
-const terminalStateCache = new Map<string, string>();
 
 interface ClaudeTerminalSingleProps {
   worktreePath: string;
@@ -31,333 +24,192 @@ export function ClaudeTerminalSingle({
   onClose,
   canClose
 }: ClaudeTerminalSingleProps) {
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const [terminal, setTerminal] = useState<Terminal | null>(null);
-  const processIdRef = useRef<string>('');
-  const fitAddonRef = useRef<FitAddon | null>(null);
-  const serializeAddonRef = useRef<SerializeAddon | null>(null);
-  const removeListenersRef = useRef<Array<() => void>>([]);
-  const previousWorktreeRef = useRef<string>('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [terminalInstance, setTerminalInstance] = useState<TerminalInstance | null>(null);
   const [detectedIDEs, setDetectedIDEs] = useState<Array<{ name: string; command: string }>>([]);
   const { toast } = useToast();
-  
-  const getCacheKey = (worktree: string, id: string) => `${worktree}:${id}`;
+  const removeListenersRef = useRef<Array<() => void>>([]);
 
-  const getTerminalTheme = useCallback((currentTheme: 'light' | 'dark') => {
-    if (currentTheme === 'light') {
-      return {
-        background: '#ffffff',
-        foreground: '#000000',
-        cursor: '#000000',
-        cursorAccent: '#ffffff',
-        selectionBackground: '#b5b5b5',
-        black: '#000000',
-        red: '#cd3131',
-        green: '#0dbc79',
-        yellow: '#e5e510',
-        blue: '#2472c8',
-        magenta: '#bc3fbc',
-        cyan: '#11a8cd',
-        white: '#e5e5e5',
-        brightBlack: '#666666',
-        brightRed: '#f14c4c',
-        brightGreen: '#23d18b',
-        brightYellow: '#f5f543',
-        brightBlue: '#3b8eea',
-        brightMagenta: '#d670d6',
-        brightCyan: '#29b8db',
-        brightWhite: '#e5e5e5'
-      };
-    } else {
-      return {
-        background: '#000000',
-        foreground: '#ffffff',
-        cursor: '#ffffff',
-        cursorAccent: '#000000',
-        selectionBackground: '#4a4a4a',
-        black: '#000000',
-        red: '#cd3131',
-        green: '#0dbc79',
-        yellow: '#e5e510',
-        blue: '#2472c8',
-        magenta: '#bc3fbc',
-        cyan: '#11a8cd',
-        white: '#e5e5e5',
-        brightBlack: '#666666',
-        brightRed: '#f14c4c',
-        brightGreen: '#23d18b',
-        brightYellow: '#f5f543',
-        brightBlue: '#3b8eea',
-        brightMagenta: '#d670d6',
-        brightCyan: '#29b8db',
-        brightWhite: '#e5e5e5'
-      };
-    }
-  }, []);
-
+  // Initialize or reattach terminal
   useEffect(() => {
-    if (!terminalRef.current) return;
+    if (!containerRef.current) return;
 
-    console.log(`Initializing terminal ${terminalId}...`);
-
-    const term = new Terminal({
-      theme: getTerminalTheme(theme),
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      fontSize: 14,
-      lineHeight: 1.2,
-      cursorBlink: true,
-      allowTransparency: false,
-      convertEol: true,
-      scrollback: 10000,
-      tabStopWidth: 4,
-      windowsMode: false,
-      allowProposedApi: true,
-      macOptionIsMeta: true
-    });
-
-    // Add addons
-    const fitAddon = new FitAddon();
-    fitAddonRef.current = fitAddon;
+    console.log(`Setting up terminal ${terminalId} for worktree ${worktreePath}`);
     
-    const serializeAddon = new SerializeAddon();
-    serializeAddonRef.current = serializeAddon;
-    term.loadAddon(serializeAddon);
+    // Get or create terminal instance
+    const instance = terminalManager.getOrCreateTerminal(
+      worktreePath,
+      terminalId,
+      containerRef.current,
+      theme
+    );
     
-    const webLinksAddon = new WebLinksAddon((_event, uri) => {
-      window.electronAPI.shell.openExternal(uri);
-    });
-    term.loadAddon(webLinksAddon);
-    
-    const unicode11Addon = new Unicode11Addon();
-    term.loadAddon(unicode11Addon);
+    setTerminalInstance(instance);
 
-    // Open terminal in container
-    term.open(terminalRef.current);
-    term.loadAddon(fitAddon);
-    unicode11Addon.activate(term);
-    
-    // Fit and focus after a small delay
-    setTimeout(() => {
-      try {
-        if (terminalRef.current && terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
-          fitAddon.fit();
-        }
-        term.focus();
-      } catch (err) {
-        console.error('Error during initial fit:', err);
-        term.focus();
-      }
-    }, 100);
-
-    setTerminal(term);
-
-    // Handle bell character
-    const bellDisposable = term.onBell(() => {
-      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhCSuBzvLZijYIG2m98OGiUSATVqzn77FgGwc4k9n1znksBSh+zPLaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSN3yfDTgDAJInfN9NuLOgoUYrfp56ZSFApGn+DyvmwhCSuBzvLZijYIG2m98OGiUSATVqzn77FgGwc4k9n1znksBSh+zPLaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQ==');
-      audio.volume = 0.5;
-      audio.play().catch(err => {
-        console.error('Bell sound playback failed:', err);
-      });
-    });
+    // Show this terminal
+    terminalManager.showTerminal(worktreePath, terminalId, containerRef.current);
 
     // Handle window resize
     const handleResize = () => {
-      if (terminalRef.current && terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
-        try {
-          fitAddon.fit();
-          if (processIdRef.current) {
-            window.electronAPI.shell.resize(
-              processIdRef.current, 
-              term.cols, 
-              term.rows
-            );
-          }
-        } catch (err) {
-          console.error('Error during resize fit:', err);
-        }
-      }
+      terminalManager.resizeTerminal(worktreePath, terminalId);
     };
 
     window.addEventListener('resize', handleResize);
 
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      removeListenersRef.current.forEach(remove => remove());
-      removeListenersRef.current = [];
-      bellDisposable.dispose();
-      term.dispose();
+    // Custom mouse wheel handler to prevent arrow key emulation in alternate buffer
+    const handleWheel = (event: WheelEvent) => {
+      if (!instance.terminal) return;
+      
+      const buffer = instance.terminal.buffer.active;
+      const isAlternateBuffer = buffer.type === 'alternate';
+      
+      if (isAlternateBuffer) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const scrollLines = Math.abs(event.deltaY) > 0 ? Math.sign(event.deltaY) * 3 : 0;
+        
+        if (scrollLines !== 0) {
+          instance.terminal.scrollLines(scrollLines);
+        }
+        
+        return false;
+      }
+      return true;
     };
-  }, [theme, getTerminalTheme, terminalId]);
 
-  // Auto-start shell when worktree changes
-  useEffect(() => {
-    if (!terminal || !worktreePath) return;
-
-    // Save current terminal state before switching
-    if (previousWorktreeRef.current && previousWorktreeRef.current !== worktreePath && serializeAddonRef.current) {
-      const previousKey = getCacheKey(previousWorktreeRef.current, terminalId);
-      const serialized = serializeAddonRef.current.serialize();
-      terminalStateCache.set(previousKey, serialized);
-      console.log(`Saved terminal state for ${previousKey}`);
+    // Attach wheel event listener
+    if (containerRef.current) {
+      containerRef.current.addEventListener('wheel', handleWheel, { passive: false });
     }
 
+    // Cleanup function
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (containerRef.current) {
+        containerRef.current.removeEventListener('wheel', handleWheel);
+      }
+      removeListenersRef.current.forEach(remove => remove());
+      removeListenersRef.current = [];
+      
+      // Don't destroy terminal here, just hide it
+      terminalManager.hideTerminal(worktreePath, terminalId);
+    };
+  }, [worktreePath, terminalId, theme]);
+
+  // Start shell process if needed
+  useEffect(() => {
+    if (!terminalInstance || !worktreePath) return;
+
+    // Clean up previous listeners
     removeListenersRef.current.forEach(remove => remove());
     removeListenersRef.current = [];
 
     const startShell = async () => {
+      // Skip if process already running
+      if (terminalInstance.processId) {
+        console.log(`Terminal ${terminalId} already has process ${terminalInstance.processId}`);
+        return;
+      }
+
       try {
-        const cols = terminal.cols;
-        const rows = terminal.rows;
+        const cols = terminalInstance.terminal.cols;
+        const rows = terminalInstance.terminal.rows;
         
-        // Check if we're switching worktrees
-        const isSwitchingWorktree = previousWorktreeRef.current && previousWorktreeRef.current !== worktreePath;
-        
-        const result = await window.electronAPI.shell.start(worktreePath, cols, rows, false, terminalId); // Use terminal ID for session isolation
+        const result = await window.electronAPI.shell.start(worktreePath, cols, rows, false);
         
         if (!result.success) {
-          terminal.writeln(`\r\nError: ${result.error || 'Failed to start shell'}\r\n`);
+          terminalInstance.terminal.writeln(`\r\nError: ${result.error || 'Failed to start shell'}\r\n`);
           return;
         }
 
-        processIdRef.current = result.processId!;
-        console.log(`Shell started for ${terminalId}: ${result.processId}, isNew: ${result.isNew}, worktree: ${worktreePath}, switching: ${isSwitchingWorktree}`);
-
-        // Clear terminal and restore cached state if available
-        terminal.clear();
-        
-        if (!result.isNew) {
-          // Try to restore cached terminal state for this worktree
-          const cacheKey = getCacheKey(worktreePath, terminalId);
-          const cachedState = terminalStateCache.get(cacheKey);
-          if (cachedState) {
-            terminal.write(cachedState);
-            console.log(`Restored terminal state for ${cacheKey}`);
-          }
-        }
-        
-        // Update previous worktree ref
-        previousWorktreeRef.current = worktreePath;
-        
-        terminal.focus();
-        
-        // Set initial PTY size
-        if (fitAddonRef.current && terminalRef.current) {
-          setTimeout(() => {
-            try {
-              if (terminalRef.current && terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
-                fitAddonRef.current!.fit();
-                window.electronAPI.shell.resize(
-                  result.processId!,
-                  terminal.cols,
-                  terminal.rows
-                );
-              } else {
-                window.electronAPI.shell.resize(
-                  result.processId!,
-                  80,
-                  24
-                );
-              }
-            } catch (err) {
-              console.error('Error during PTY resize fit:', err);
-              window.electronAPI.shell.resize(
-                result.processId!,
-                80,
-                24
-              );
-            }
-          }, 100);
-        }
+        terminalInstance.processId = result.processId!;
+        console.log(`Shell started for terminal ${terminalId}: ${result.processId}, worktree: ${worktreePath}`);
 
         // Handle terminal input
-        const disposable = terminal.onData((data) => {
-          if (processIdRef.current) {
-            window.electronAPI.shell.write(processIdRef.current, data);
+        const disposable = terminalInstance.terminal.onData((data) => {
+          if (terminalInstance.processId) {
+            window.electronAPI.shell.write(terminalInstance.processId, data);
           }
         });
 
+        // Handle bell character
+        const bellDisposable = terminalInstance.terminal.onBell(() => {
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhCSuBzvLZijYIG2m98OGiUSATVqzn77FgGwc4k9n1znksBSh+zPLaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSN3yfDTgDAJInfN9NuLOgoUYrfp56ZSFApGn+DyvmwhCSuBzvLZijYIG2m98OGiUSATVqzn77FgGwc4k9n1znksBSh+zPLaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQ==');
+          audio.volume = 0.5;
+          audio.play().catch(err => {
+            console.error('Bell sound playback failed:', err);
+          });
+        });
+
         // Set up output listener
-        let lastWasClear = false;
         const removeOutputListener = window.electronAPI.shell.onOutput(result.processId!, (data) => {
-          if (data.includes('\x1b[2J') && data.includes('\x1b[H')) {
-            terminal.clear();
-            terminal.write('\x1b[H');
-            lastWasClear = true;
-            // eslint-disable-next-line no-control-regex
-            const afterClear = data.split(/\x1b\[2J.*?\x1b\[H/)[1];
-            if (afterClear) {
-              terminal.write(afterClear);
-            }
-          } else if (lastWasClear && data.startsWith('\n')) {
-            lastWasClear = false;
-            terminal.write(data.substring(1));
-          } else {
-            lastWasClear = false;
-            terminal.write(data);
-          }
+          terminalInstance.terminal.write(data);
         });
 
         // Set up exit listener
         const removeExitListener = window.electronAPI.shell.onExit(result.processId!, (code) => {
-          terminal.writeln(`\r\n[Shell exited with code ${code}]`);
-          processIdRef.current = '';
+          terminalInstance.terminal.writeln(`\r\n[Shell exited with code ${code}]`);
+          terminalInstance.processId = '';
         });
-
-        // Periodically save terminal state
-        const saveInterval = setInterval(() => {
-          if (serializeAddonRef.current && processIdRef.current) {
-            const cacheKey = getCacheKey(worktreePath, terminalId);
-            const serialized = serializeAddonRef.current.serialize();
-            terminalStateCache.set(cacheKey, serialized);
-          }
-        }, 5000);
 
         // Store listeners for cleanup
         removeListenersRef.current = [
           () => disposable.dispose(),
+          () => bellDisposable.dispose(),
           removeOutputListener,
-          removeExitListener,
-          () => clearInterval(saveInterval)
+          removeExitListener
         ];
 
+        // Set initial PTY size
+        setTimeout(() => {
+          terminalManager.resizeTerminal(worktreePath, terminalId);
+        }, 100);
+
       } catch (error) {
-        terminal.writeln(`\r\nError starting shell: ${error}\r\n`);
+        terminalInstance.terminal.writeln(`\r\nError starting shell: ${error}\r\n`);
       }
     };
 
     startShell();
 
     return () => {
-      // Save terminal state before cleanup
-      if (serializeAddonRef.current && processIdRef.current) {
-        const cacheKey = getCacheKey(worktreePath, terminalId);
-        const serialized = serializeAddonRef.current.serialize();
-        terminalStateCache.set(cacheKey, serialized);
-      }
-      
-      removeListenersRef.current.forEach(remove => remove());
-      removeListenersRef.current = [];
+      // Note: We don't kill the process here, as we want to keep it running
+      // The process will only be killed when the terminal is explicitly closed
     };
-  }, [terminal, worktreePath, terminalId]);
-
-  // Detect available IDEs
-  useEffect(() => {
-    window.electronAPI.ide.detect().then(setDetectedIDEs);
-  }, []);
+  }, [terminalInstance, worktreePath, terminalId]);
 
   // Update theme when prop changes
   useEffect(() => {
-    if (!terminal) return;
-    terminal.options.theme = getTerminalTheme(theme);
-  }, [terminal, theme, getTerminalTheme]);
+    terminalManager.updateTheme(theme);
+  }, [theme]);
+
+  // Detect IDEs in the worktree
+  useEffect(() => {
+    const detectIDEs = async () => {
+      try {
+        const result = await window.electronAPI.ide.detect();
+        setDetectedIDEs(result);
+      } catch (error) {
+        console.error('Failed to detect IDEs:', error);
+      }
+    };
+
+    detectIDEs();
+  }, [worktreePath]);
 
   const handleOpenInIDE = async (ideName: string) => {
     try {
       const result = await window.electronAPI.ide.open(ideName, worktreePath);
-      if (!result.success) {
+      if (result.success) {
         toast({
-          title: "Error",
-          description: result.error || "Failed to open IDE",
+          title: "IDE Opened",
+          description: `${ideName} has been opened for this worktree.`,
+        });
+      } else {
+        toast({
+          title: "Failed to open IDE",
+          description: result.error || "Unknown error occurred",
           variant: "destructive",
         });
       }
@@ -370,72 +222,66 @@ export function ClaudeTerminalSingle({
     }
   };
 
+  const handleCloseTerminal = () => {
+    if (!canClose) return;
+    
+    // Clean up the terminal process and instance
+    // Note: We don't have a kill method, the process will be cleaned up when the terminal is destroyed
+    
+    // Destroy the terminal completely
+    terminalManager.destroyTerminal(worktreePath, terminalId);
+    
+    // Notify parent to remove this terminal from the grid
+    onClose();
+  };
+
   return (
-    <div className="flex-1 flex flex-col h-full">
-      {/* Header */}
-      <div className="h-[57px] px-4 border-b flex items-center justify-between flex-shrink-0">
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold">Terminal {terminalId}</h3>
-          <p className="text-xs text-muted-foreground truncate">{worktreePath}</p>
+    <div className="flex flex-col h-full bg-background">
+      <div className="flex items-center justify-between px-2 py-1 border-b">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Terminal {terminalId.split('-')[1]}</span>
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
+          {detectedIDEs.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6">
+                  <Code2 className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {detectedIDEs.map((ide) => (
+                  <DropdownMenuItem
+                    key={ide.name}
+                    onClick={() => handleOpenInIDE(ide.name)}
+                  >
+                    Open in {ide.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6"
             onClick={onSplit}
-            title="Split Terminal"
           >
-            <Columns2 className="h-4 w-4" />
+            <Columns2 className="h-3.5 w-3.5" />
           </Button>
           {canClose && (
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={onClose}
-              title="Close Terminal"
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6"
+              onClick={handleCloseTerminal}
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </Button>
-          )}
-          {detectedIDEs.length > 0 && (
-            detectedIDEs.length === 1 ? (
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => handleOpenInIDE(detectedIDEs[0].name)}
-                title={`Open in ${detectedIDEs[0].name}`}
-              >
-                <Code2 className="h-4 w-4" />
-              </Button>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="icon" variant="ghost">
-                    <Code2 className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {detectedIDEs.map((ide) => (
-                    <DropdownMenuItem
-                      key={ide.name}
-                      onClick={() => handleOpenInIDE(ide.name)}
-                    >
-                      Open in {ide.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )
           )}
         </div>
       </div>
-
-      {/* Terminal container */}
-      <div 
-        ref={terminalRef} 
-        className={`flex-1 h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
-        style={{ minHeight: '100px' }}
-      />
+      <div ref={containerRef} className="flex-1 overflow-hidden" />
     </div>
   );
 }
