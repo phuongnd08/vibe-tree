@@ -22,5 +22,6 @@ services:
         pnpm --filter @vibetree/desktop build &&
         cd apps/desktop &&
         npx tsc src/main/test-index.ts --outDir dist/main --target es2020 --module commonjs --esModuleInterop --allowSyntheticDefaultImports --resolveJsonModule &&
+        cd node_modules/electron && node install.js && cd ../.. &&
         xvfb-run --auto-servernum --server-args='-screen 0 1280x960x24' -- pnpm exec playwright test --reporter=list
       "
