@@ -224,14 +224,24 @@ export function ClaudeTerminalSingle({
 
         // Clear terminal and restore cached state if available
         terminal.clear();
+        terminal.reset();
+        
+        let isRestoringState = false;
         
         if (!result.isNew) {
           // Try to restore cached terminal state for this worktree
           const cacheKey = getCacheKey(worktreePath, terminalId);
           const cachedState = terminalStateCache.get(cacheKey);
           if (cachedState) {
+            isRestoringState = true;
+            // Write the serialized state back to the terminal
+            // This includes cursor position, scrollback, and all terminal attributes
             terminal.write(cachedState);
             console.log(`Restored terminal state for ${cacheKey}`);
+            // Give some time for the state to be properly restored before accepting new output
+            setTimeout(() => {
+              isRestoringState = false;
+            }, 100);
           }
         }
         
@@ -279,6 +289,11 @@ export function ClaudeTerminalSingle({
         // Set up output listener
         let lastWasClear = false;
         const removeOutputListener = window.electronAPI.shell.onOutput(result.processId!, (data) => {
+          // Skip writing data if we're in the process of restoring state
+          if (isRestoringState) {
+            return;
+          }
+          
           if (data.includes('\x1b[2J') && data.includes('\x1b[H')) {
             terminal.clear();
             terminal.write('\x1b[H');
