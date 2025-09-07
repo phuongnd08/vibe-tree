@@ -753,124 +753,125 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      <div className="h-[57px] px-4 border-b flex items-center justify-between flex-shrink-0">
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold">Terminal</h3>
-          <p className="text-xs text-muted-foreground truncate">{worktreePath}</p>
+      {/* Headers */}
+      <div className={`flex ${isSplit ? 'flex-row' : ''}`}>
+        <div className={`${isSplit ? 'w-1/2' : 'w-full'} h-[57px] px-4 border-b flex items-center justify-between flex-shrink-0`}>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold">Terminal</h3>
+            <p className="text-xs text-muted-foreground truncate">{worktreePath}</p>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={toggleSplit}
+              title="Split Terminal"
+            >
+              <Columns2 className="h-4 w-4" />
+            </Button>
+            {detectedIDEs.length > 0 && (
+              detectedIDEs.length === 1 ? (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => handleOpenInIDE(detectedIDEs[0].name)}
+                  title={`Open in ${detectedIDEs[0].name}`}
+                >
+                  <Code2 className="h-4 w-4" />
+                </Button>
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="icon" variant="ghost">
+                      <Code2 className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {detectedIDEs.map((ide) => (
+                      <DropdownMenuItem
+                        key={ide.name}
+                        onClick={() => handleOpenInIDE(ide.name)}
+                      >
+                        Open in {ide.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={toggleSplit}
-            title="Split Terminal"
-          >
-            <Columns2 className="h-4 w-4" />
-          </Button>
-          {detectedIDEs.length > 0 && (
-            detectedIDEs.length === 1 ? (
+        {isSplit && (
+          <div className="w-1/2 h-[57px] px-4 border-b border-l flex items-center justify-between flex-shrink-0">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold">Terminal (Split)</h3>
+              <p className="text-xs text-muted-foreground truncate">{worktreePath}</p>
+            </div>
+            <div className="flex items-center gap-1">
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={() => handleOpenInIDE(detectedIDEs[0].name)}
-                title={`Open in ${detectedIDEs[0].name}`}
+                onClick={toggleSplit}
+                title="Split Terminal"
               >
-                <Code2 className="h-4 w-4" />
+                <Columns2 className="h-4 w-4" />
               </Button>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="icon" variant="ghost">
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={closeSplitTerminal}
+                title="Close Split Terminal"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              {detectedIDEs.length > 0 && (
+                detectedIDEs.length === 1 ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => handleOpenInIDE(detectedIDEs[0].name)}
+                    title={`Open in ${detectedIDEs[0].name}`}
+                  >
                     <Code2 className="h-4 w-4" />
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {detectedIDEs.map((ide) => (
-                    <DropdownMenuItem
-                      key={ide.name}
-                      onClick={() => handleOpenInIDE(ide.name)}
-                    >
-                      Open in {ide.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )
-          )}
-        </div>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost">
+                        <Code2 className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {detectedIDEs.map((ide) => (
+                        <DropdownMenuItem
+                          key={ide.name}
+                          onClick={() => handleOpenInIDE(ide.name)}
+                        >
+                          Open in {ide.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Terminal containers */}
       <div className={`flex-1 min-h-0 flex ${isSplit ? 'flex-row' : ''}`}>
-        <div className={`${isSplit ? 'w-1/2 border-r' : 'w-full'} h-full flex flex-col`}>
+        <div 
+          ref={terminalRef} 
+          className={`${isSplit ? 'w-1/2 border-r' : 'w-full'} h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
+          style={{ minHeight: '100px' }}
+        />
+        {isSplit && (
           <div 
-            ref={terminalRef} 
-            className={`flex-1 ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
+            ref={splitTerminalRef} 
+            className={`w-1/2 h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
             style={{ minHeight: '100px' }}
           />
-        </div>
-        {isSplit && (
-          <div className="w-1/2 h-full flex flex-col">
-            {/* Split terminal header */}
-            <div className="h-[57px] px-4 border-b flex items-center justify-between flex-shrink-0">
-              <div className="min-w-0 flex-1">
-                <h3 className="font-semibold">Terminal (Split)</h3>
-                <p className="text-xs text-muted-foreground truncate">{worktreePath}</p>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={toggleSplit}
-                  title="Split Terminal"
-                >
-                  <Columns2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={closeSplitTerminal}
-                  title="Close Split Terminal"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-                {detectedIDEs.length > 0 && (
-                  detectedIDEs.length === 1 ? (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleOpenInIDE(detectedIDEs[0].name)}
-                      title={`Open in ${detectedIDEs[0].name}`}
-                    >
-                      <Code2 className="h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost">
-                          <Code2 className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        {detectedIDEs.map((ide) => (
-                          <DropdownMenuItem
-                            key={ide.name}
-                            onClick={() => handleOpenInIDE(ide.name)}
-                          >
-                            Open in {ide.name}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )
-                )}
-              </div>
-            </div>
-            <div 
-              ref={splitTerminalRef} 
-              className={`flex-1 ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
-              style={{ minHeight: '100px' }}
-            />
-          </div>
         )}
       </div>
     </div>

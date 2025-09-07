@@ -443,54 +443,105 @@ export function TerminalView({ worktreePath }: TerminalViewProps) {
 
   return (
     <div className={`flex flex-col w-full h-full ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
-      {/* Terminal Header */}
-      <div className="h-14 px-4 border-b flex items-center justify-between flex-shrink-0 bg-background">
-        <div className="flex items-center gap-2 min-w-0">
-          <button
-            onClick={handleBack}
-            className="md:hidden p-1 hover:bg-accent rounded flex-shrink-0"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <div className="min-w-0">
-            <h3 className="font-semibold truncate">Terminal</h3>
-            <p className="text-xs text-muted-foreground truncate">
-              {selectedWorktree?.split('/').slice(-2).join('/')}
-            </p>
+      {/* Terminal Headers */}
+      <div className={`flex ${isSplit ? 'flex-row' : ''} bg-background`}>
+        <div className={`${isSplit ? 'w-1/2' : 'w-full'} h-14 px-4 border-b flex items-center justify-between flex-shrink-0`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={handleBack}
+              className="md:hidden p-1 hover:bg-accent rounded flex-shrink-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="min-w-0">
+              <h3 className="font-semibold truncate">Terminal</h3>
+              <p className="text-xs text-muted-foreground truncate">
+                {selectedWorktree?.split('/').slice(-2).join('/')}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleSplit}
+              className="p-1 hover:bg-accent rounded"
+              title="Split Terminal"
+            >
+              <Columns2 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={toggleFullscreen}
+              className="p-1 hover:bg-accent rounded"
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={toggleSplit}
-            className="p-1 hover:bg-accent rounded"
-            title="Split Terminal"
-          >
-            <Columns2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={toggleFullscreen}
-            className="p-1 hover:bg-accent rounded"
-            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-          >
-            {isFullscreen ? (
-              <Minimize2 className="h-4 w-4" />
-            ) : (
-              <Maximize2 className="h-4 w-4" />
-            )}
-          </button>
-        </div>
+        {/* Split terminal header */}
+        {isSplit && (
+          <div className="w-1/2 h-14 px-4 border-b border-l flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="min-w-0">
+                <h3 className="font-semibold truncate">Terminal (Split)</h3>
+                <p className="text-xs text-muted-foreground truncate">
+                  {selectedWorktree?.split('/').slice(-2).join('/')}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleSplit}
+                className="p-1 hover:bg-accent rounded"
+                title="Split Terminal"
+              >
+                <Columns2 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={closeSplitTerminal}
+                className="p-1 hover:bg-accent rounded"
+                title="Close Split Terminal"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Terminal Container */}
       <div className={`flex-1 flex ${isSplit ? 'flex-row' : ''} ${theme === 'light' ? 'bg-white' : 'bg-black'}`}>
-        <div className={`${isSplit ? 'w-1/2 border-r' : 'w-full'} h-full flex flex-col`}>
-          <div className="flex-1">
-            {sessionId && (
+        <div className={`${isSplit ? 'w-1/2 border-r' : 'w-full'} h-full`}>
+          {sessionId && (
+            <Terminal
+              id={sessionId}
+              onData={handleTerminalData}
+              onResize={handleTerminalResize}
+              onReady={handleTerminalReady}
+              config={{
+                theme: theme,
+                fontSize: 14,
+                cursorBlink: true
+              }}
+            />
+          )}
+          {!sessionId && (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <p>Starting terminal session...</p>
+            </div>
+          )}
+        </div>
+        {isSplit && (
+          <div className="w-1/2 h-full">
+            {splitSessionId && (
               <Terminal
-                id={sessionId}
-                onData={handleTerminalData}
-                onResize={handleTerminalResize}
-                onReady={handleTerminalReady}
+                id={splitSessionId}
+                onData={handleSplitTerminalData}
+                onResize={handleSplitTerminalResize}
+                onReady={handleSplitTerminalReady}
                 config={{
                   theme: theme,
                   fontSize: 14,
@@ -498,62 +549,11 @@ export function TerminalView({ worktreePath }: TerminalViewProps) {
                 }}
               />
             )}
-            {!sessionId && (
+            {!splitSessionId && (
               <div className="flex items-center justify-center h-full text-muted-foreground">
-                <p>Starting terminal session...</p>
+                <p>Starting split terminal session...</p>
               </div>
             )}
-          </div>
-        </div>
-        {isSplit && (
-          <div className="w-1/2 h-full flex flex-col">
-            {/* Split terminal header */}
-            <div className="h-14 px-4 border-b flex items-center justify-between flex-shrink-0 bg-background">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="min-w-0">
-                  <h3 className="font-semibold truncate">Terminal (Split)</h3>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {selectedWorktree?.split('/').slice(-2).join('/')}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={toggleSplit}
-                  className="p-1 hover:bg-accent rounded"
-                  title="Split Terminal"
-                >
-                  <Columns2 className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={closeSplitTerminal}
-                  className="p-1 hover:bg-accent rounded"
-                  title="Close Split Terminal"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1">
-              {splitSessionId && (
-                <Terminal
-                  id={splitSessionId}
-                  onData={handleSplitTerminalData}
-                  onResize={handleSplitTerminalResize}
-                  onReady={handleSplitTerminalReady}
-                  config={{
-                    theme: theme,
-                    fontSize: 14,
-                    cursorBlink: true
-                  }}
-                />
-              )}
-              {!splitSessionId && (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  <p>Starting split terminal session...</p>
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>
