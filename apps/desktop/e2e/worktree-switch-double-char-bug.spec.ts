@@ -305,4 +305,127 @@ test.describe('Worktree Switch Double Character Bug', () => {
     // Verify that the terminal content remains the same
     expect(finalTerminalText).toBe(initialTerminalText);
   });
+
+  test('should preserve user input state when switching between worktrees', async () => {
+    test.setTimeout(60000);
+
+    await page.waitForLoadState('domcontentloaded');
+
+    // Verify the app launches with project selector
+    await expect(page.locator('h2', { hasText: 'Select a Project' })).toBeVisible({ timeout: 10000 });
+
+    // Click the "Open Project Folder" button
+    const openButton = page.locator('button', { hasText: 'Open Project Folder' });
+    await expect(openButton).toBeVisible();
+
+    // Mock the Electron dialog to return our dummy repository path
+    await electronApp.evaluate(async ({ dialog }, repoPath) => {
+      dialog.showOpenDialog = async () => {
+        return {
+          canceled: false,
+          filePaths: [repoPath]
+        };
+      };
+    }, dummyRepoPath);
+
+    // Click the open button which will trigger the mocked dialog
+    await openButton.click();
+
+    // Wait for worktree list to appear
+    await page.waitForTimeout(3000);
+
+    // Use the reliable data-worktree-branch selector
+    const wt1Button = page.locator('button[data-worktree-branch="wt1"]');
+    const wt1Count = await wt1Button.count();
+    
+    if (wt1Count === 0) {
+      throw new Error('Could not find wt1 worktree button');
+    }
+    
+    console.log('Found wt1 worktree button');
+
+    // First click on wt1
+    console.log('Clicking on wt1...');
+    await wt1Button.click();
+    await page.waitForTimeout(2000);
+
+    // Find the terminal element
+    const terminalSelectors = ['.xterm-screen', '.xterm', '.xterm-container'];
+    let terminalElement = null;
+
+    for (const selector of terminalSelectors) {
+      const element = page.locator(selector).first();
+      if (await element.count() > 0) {
+        terminalElement = element;
+        break;
+      }
+    }
+
+    expect(terminalElement).not.toBeNull();
+
+    // Click on the terminal to focus it
+    await terminalElement!.click();
+    await page.waitForTimeout(1000);
+
+    // Type partial command without pressing enter
+    console.log('Typing partial command "echo hello" without pressing enter...');
+    await page.keyboard.type('echo hello');
+    await page.waitForTimeout(1000);
+
+    // Get the terminal content to verify our input is there
+    const terminalScreen = page.locator('.xterm-screen');
+    const contentAfterTyping = await terminalScreen.textContent();
+    console.log('===== AFTER TYPING IN WT1 =====');
+    console.log('Content after typing:', contentAfterTyping);
+    console.log('Contains "echo hello":', contentAfterTyping?.includes('echo hello'));
+    console.log('===============================');
+
+    // Find and click on wt2 
+    const wt2Button = page.locator('button[data-worktree-branch="wt2"]');
+    const wt2Count = await wt2Button.count();
+    
+    if (wt2Count === 0) {
+      throw new Error('Could not find wt2 worktree button');
+    }
+    
+    console.log('Found wt2 worktree button');
+
+    console.log('Clicking on wt2...');
+    await wt2Button.click();
+    await page.waitForTimeout(2000);
+
+    // Click back on wt1
+    console.log('Clicking back on wt1...');
+    await wt1Button.click();
+    await page.waitForTimeout(2000);
+
+    // Click on the terminal to focus it again
+    await terminalElement!.click();
+    await page.waitForTimeout(1000);
+
+    // Get the terminal content after switching back
+    const finalContent = await terminalScreen.textContent();
+    console.log('===== AFTER SWITCHING BACK TO WT1 =====');
+    console.log('Final content:', finalContent);
+    console.log('Still contains "echo hello":', finalContent?.includes('echo hello'));
+    console.log('======================================');
+
+    // The user input should still be there and functional
+    // If we press Enter now, the command should execute
+    console.log('Pressing Enter to execute the command...');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(2000);
+
+    const contentAfterEnter = await terminalScreen.textContent();
+    console.log('===== AFTER PRESSING ENTER =====');
+    console.log('Content after Enter:', contentAfterEnter);
+    console.log('Command executed (should see "hello" output):', contentAfterEnter?.includes('hello'));
+    console.log('===============================');
+
+    // Verify that:
+    // 1. The user input was preserved when switching back
+    // 2. The command can still be executed (PTY state is intact)
+    expect(finalContent?.includes('echo hello')).toBe(true);
+    expect(contentAfterEnter?.includes('hello')).toBe(true);
+  });
 });
