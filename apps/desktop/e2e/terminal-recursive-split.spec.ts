@@ -102,7 +102,7 @@ test.describe('Terminal Recursive Split Feature Test', () => {
     await page.waitForTimeout(3000);
 
     // Start with 1 terminal - split to 2
-    let splitButton = page.locator('button[title="Split Terminal"]').first();
+    const splitButton = page.locator('button[title="Split Terminal"]').first();
     await expect(splitButton).toBeVisible();
     await splitButton.click();
     await page.waitForTimeout(2000);
@@ -115,7 +115,7 @@ test.describe('Terminal Recursive Split Feature Test', () => {
     // Split the first terminal again to get 3 terminals total
     // Find split buttons (should be 2 now, one for each terminal)
     const splitButtons = page.locator('button[title="Split Terminal"]');
-    let splitButtonCount = await splitButtons.count();
+    const splitButtonCount = await splitButtons.count();
     expect(splitButtonCount).toBeGreaterThanOrEqual(1);
     
     // Click the first split button to split the first terminal
@@ -237,7 +237,7 @@ test.describe('Terminal Recursive Split Feature Test', () => {
     await page.waitForTimeout(3000);
 
     // Start with Terminal 1, split to get Terminal 2
-    let splitButton = page.locator('button[title="Split Terminal"]').first();
+    const splitButton = page.locator('button[title="Split Terminal"]').first();
     await expect(splitButton).toBeVisible();
     await splitButton.click();
     await page.waitForTimeout(2000);
@@ -249,7 +249,7 @@ test.describe('Terminal Recursive Split Feature Test', () => {
     // Split Terminal 2 to get Terminal 3
     // Find the split button in the second terminal's header (Terminal 2)
     const splitButtons = page.locator('button[title="Split Terminal"]');
-    let splitButtonCount = await splitButtons.count();
+    const splitButtonCount = await splitButtons.count();
     expect(splitButtonCount).toBeGreaterThanOrEqual(2);
     
     // Click the split button for Terminal 2 (usually the second one)
@@ -285,9 +285,9 @@ test.describe('Terminal Recursive Split Feature Test', () => {
     await page.waitForTimeout(1000);
 
     // Verify all terminals have their unique content
-    let terminal1Content = await terminals[0].textContent();
-    let terminal2Content = await terminals[1].textContent();
-    let terminal3Content = await terminals[2].textContent();
+    const terminal1Content = await terminals[0].textContent();
+    const terminal2Content = await terminals[1].textContent();
+    const terminal3Content = await terminals[2].textContent();
     
     expect(terminal1Content).toContain('This is Terminal 1');
     expect(terminal2Content).toContain('This is Terminal 2');
@@ -296,7 +296,7 @@ test.describe('Terminal Recursive Split Feature Test', () => {
     // Now close Terminal 2 (the middle one)
     // Find close buttons and click the one for Terminal 2
     const closeButtons = page.locator('button[title="Close Terminal"]');
-    let closeButtonCount = await closeButtons.count();
+    const closeButtonCount = await closeButtons.count();
     expect(closeButtonCount).toBe(3); // Should have 3 close buttons for 3 terminals
 
     // Close Terminal 2 (usually the second close button)
