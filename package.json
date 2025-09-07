@@ -5,7 +5,7 @@
   "description": "VibeTree - Vibe code with AI in parallel git worktrees",
   "scripts": {
     "dev": "turbo run dev",
-    "dev:desktop": "pnpm --filter @vibetree/desktop dev",
+    "dev:desktop": "pnpm --filter @vibetree/core build && pnpm --filter @vibetree/desktop dev",
     "dev:desktop:reset": "pnpm fix:electron && pnpm dev:desktop",
     "dev:server": "pnpm --filter @vibetree/server dev",
     "dev:web": "pnpm --filter @vibetree/web dev",
