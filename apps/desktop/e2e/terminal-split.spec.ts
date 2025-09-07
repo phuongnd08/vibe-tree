@@ -207,4 +207,75 @@ test.describe('Terminal Split Feature Test', () => {
       }
     }
   });
+
+  test('should keep split terminals independent - output not shared', async () => {
+    test.setTimeout(60000);
+
+    await page.waitForLoadState('domcontentloaded');
+
+    // Setup and navigate to terminal
+    await expect(page.locator('h2', { hasText: 'Select a Project' })).toBeVisible({ timeout: 10000 });
+    const openButton = page.locator('button', { hasText: 'Open Project Folder' });
+    
+    await electronApp.evaluate(async ({ dialog }, repoPath) => {
+      dialog.showOpenDialog = async () => {
+        return {
+          canceled: false,
+          filePaths: [repoPath]
+        };
+      };
+    }, dummyRepoPath);
+
+    await openButton.click();
+    await page.waitForTimeout(3000);
+
+    const worktreeButton = page.locator('button[data-worktree-branch="main"]');
+    await worktreeButton.click();
+    await page.waitForTimeout(3000);
+
+    // Type "echo SIGNAL" in the first terminal BEFORE splitting
+    const terminalContainers = page.locator('.xterm-screen');
+    const firstTerminal = terminalContainers.nth(0);
+    await firstTerminal.click();
+    await page.waitForTimeout(500);
+    await page.keyboard.type('echo SIGNAL');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(1000);
+
+    // Verify SIGNAL appears in the first terminal
+    const firstTerminalContent = await firstTerminal.textContent();
+    expect(firstTerminalContent).toContain('SIGNAL');
+
+    // Now create a split terminal
+    const splitButton = page.locator('button[title="Split Terminal"]');
+    await splitButton.click();
+    await page.waitForTimeout(2000);
+
+    // Verify two terminal containers exist
+    const terminalCount = await terminalContainers.count();
+    expect(terminalCount).toBe(2);
+
+    // Check the second (split) terminal - it should NOT contain SIGNAL
+    const secondTerminal = terminalContainers.nth(1);
+    const secondTerminalContent = await secondTerminal.textContent();
+    
+    // The split terminal should be clean and not contain SIGNAL
+    expect(secondTerminalContent).not.toContain('SIGNAL');
+
+    // Type something in the split terminal to verify it's independent
+    await secondTerminal.click();
+    await page.waitForTimeout(500);
+    await page.keyboard.type('echo "Split Terminal Independent"');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(1000);
+
+    // Verify the split terminal has its own output
+    const updatedSecondContent = await secondTerminal.textContent();
+    expect(updatedSecondContent).toContain('Split Terminal Independent');
+    
+    // Verify the first terminal still has SIGNAL but not the new output
+    const updatedFirstContent = await firstTerminal.textContent();
+    expect(updatedFirstContent).toContain('SIGNAL');
+    expect(updatedFirstContent).not.toContain('Split Terminal Independent');
+  });
 });
