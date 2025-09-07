@@ -116,9 +116,10 @@ test.describe('Terminal Split Feature Test', () => {
     const terminalCount = await terminalContainers.count();
     expect(terminalCount).toBe(2);
 
-    // Find the close button for split terminal
-    const closeSplitButton = page.locator('button[title="Close Split Terminal"]');
-    await expect(closeSplitButton).toBeVisible();
+    // Find the close buttons for split terminals (there should be 2)
+    const closeButtons = page.locator('button[title="Close Terminal"]');
+    const closeButtonCount = await closeButtons.count();
+    expect(closeButtonCount).toBe(2);
 
     // Test first terminal - click and type a command
     const firstTerminal = terminalContainers.nth(0);
@@ -143,8 +144,8 @@ test.describe('Terminal Split Feature Test', () => {
     const secondTerminalContent = await secondTerminal.textContent();
     expect(secondTerminalContent).toContain('Terminal 2');
 
-    // Test closing the split terminal
-    await closeSplitButton.click();
+    // Test closing the split terminal (close the first terminal)
+    await closeButtons.first().click();
     await page.waitForTimeout(1000);
 
     // Verify only one terminal remains

@@ -127,10 +127,10 @@ export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: 
           // Check if one of the direct children is the target
           if (left.id === targetId) {
             // Replace this split node with the right child
-            return findAndReplaceParent(right, targetId);
+            return right;
           } else if (right.id === targetId) {
             // Replace this split node with the left child
-            return findAndReplaceParent(left, targetId);
+            return left;
           } else {
             // Recursively process children
             return {
