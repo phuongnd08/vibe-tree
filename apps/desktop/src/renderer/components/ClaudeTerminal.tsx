@@ -21,6 +21,9 @@ interface ClaudeTerminalProps {
 // This ensures proper isolation between worktrees
 const terminalStateCache = new Map<string, string>();
 
+// Cache for output buffers per worktree to prevent cross-contamination
+const outputBufferCache = new Map<string, string[]>();
+
 export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
@@ -207,7 +210,9 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
       if (terminal && serializeAddonRef.current && previousWorktree) {
         // Save the terminal state for the PREVIOUS worktree, not the new one
         const serializedState = serializeAddonRef.current.serialize();
-        console.log(`Saving terminal state for worktree: ${previousWorktree}`);
+        console.log(`[SAVE] Saving terminal state for worktree: ${previousWorktree}`);
+        console.log(`[SAVE] State length: ${serializedState.length}`);
+        console.log(`[SAVE] State preview: ${serializedState.substring(0, 200)}...`);
         terminalStateCache.set(previousWorktree, serializedState);
       }
     };
@@ -215,9 +220,24 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
   // Auto-start shell when worktree changes
   useEffect(() => {
-    if (!terminal || !worktreePath) return;
+    console.log(`[EFFECT] Worktree change effect triggered, worktreePath: ${worktreePath}`);
+    if (!terminal || !worktreePath) {
+      console.log(`[EFFECT] Early return - terminal: ${!!terminal}, worktreePath: ${worktreePath}`);
+      return;
+    }
+
+    // CRITICAL FIX: Save current terminal state immediately BEFORE doing anything else
+    // This prevents contamination from new shell output
+    const previousWorktree = currentWorktreeRef.current;
+    if (previousWorktree && serializeAddonRef.current && previousWorktree !== worktreePath) {
+      const serializedState = serializeAddonRef.current.serialize();
+      console.log(`[IMMEDIATE-SAVE] Saving state for ${previousWorktree} before switching to ${worktreePath}`);
+      console.log(`[IMMEDIATE-SAVE] State length: ${serializedState.length}, preview: ${serializedState.substring(0, 100)}...`);
+      terminalStateCache.set(previousWorktree, serializedState);
+    }
 
     // Clean up old listeners first
+    console.log(`[CLEANUP] Cleaning up ${removeListenersRef.current.length} listeners`);
     removeListenersRef.current.forEach(remove => remove());
     removeListenersRef.current = [];
 
@@ -236,20 +256,39 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
         processIdRef.current = result.processId!;
         currentWorktreeRef.current = worktreePath;
-        console.log(`Shell started: ${result.processId}, isNew: ${result.isNew}, worktree: ${worktreePath}`);
+        console.log(`[SHELL] Shell started: ${result.processId}, isNew: ${result.isNew}, worktree: ${worktreePath}`);
 
         // Always clear terminal when switching worktrees to prevent content mixing
+        console.log(`[CLEAR] Clearing terminal for worktree switch to: ${worktreePath}`);
         terminal.clear();
         
         // Handle terminal state - use worktree path as cache key for better isolation
         const cachedState = terminalStateCache.get(worktreePath);
+        console.log(`[RESTORE] Looking for cached state for worktree: ${worktreePath}`);
+        console.log(`[RESTORE] Cached state found: ${cachedState ? 'Yes' : 'No'}, isNew: ${result.isNew}`);
         
         if (cachedState && !result.isNew) {
+          console.log(`[RESTORE] Restoring cached state, length: ${cachedState.length}`);
+          console.log(`[RESTORE] State preview: ${cachedState.substring(0, 200)}...`);
           // Restore cached state for this specific worktree
           // Use setTimeout to ensure terminal is ready
           setTimeout(() => {
             terminal.write(cachedState);
-          }, 50);
+            console.log(`[RESTORE] Cached state written to terminal`);
+            
+            // Apply any buffered output that occurred while this worktree was in background
+            const bufferedOutput = outputBufferCache.get(worktreePath);
+            if (bufferedOutput && bufferedOutput.length > 0) {
+              console.log(`[RESTORE] Applying ${bufferedOutput.length} buffered outputs`);
+              bufferedOutput.forEach(data => {
+                terminal.write(data);
+              });
+              // Clear the buffer
+              outputBufferCache.delete(worktreePath);
+            }
+          }, 100);
+        } else {
+          console.log(`[RESTORE] No restoration - new session or no cache`);
         }
         
         // Focus terminal
@@ -297,28 +336,24 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
         // Set up output listener with special handling for Claude
         let lastWasClear = false;
-        // For existing sessions, we need to be careful about initial output
-        // Set a flag to skip output until the cached state is restored
-        let isRestoringCache = !result.isNew;
-        
-        // If we're restoring cache, delay enabling output processing
-        if (isRestoringCache) {
-          setTimeout(() => {
-            isRestoringCache = false;
-          }, 100); // Give cache restoration time to complete
-        }
         
         const removeOutputListener = window.electronAPI.shell.onOutput(result.processId!, (data) => {
+          console.log(`[OUTPUT] Received output for process ${result.processId}, worktree: ${worktreePath}`);
+          console.log(`[OUTPUT] Current worktree ref: ${currentWorktreeRef.current}`);
+          console.log(`[OUTPUT] Data length: ${data.length}, preview: ${data.substring(0, 100).replace(/\n/g, '\\n')}...`);
+          
           // CRITICAL: Only process output if this is still the current worktree
           // This prevents contamination when switching between worktrees
           if (currentWorktreeRef.current !== worktreePath) {
+            console.log(`[OUTPUT] SKIPPING - wrong worktree (current: ${currentWorktreeRef.current}, output from: ${worktreePath})`);
+            // Buffer the output for this worktree instead of dropping it
+            const buffer = outputBufferCache.get(worktreePath) || [];
+            buffer.push(data);
+            outputBufferCache.set(worktreePath, buffer);
             return;
           }
           
-          // Skip output while restoring cached state
-          if (isRestoringCache) {
-            return;
-          }
+          console.log(`[OUTPUT] WRITING to terminal for worktree: ${worktreePath}`);
           
           // Check if Claude is trying to clear the screen
           if (data.includes('\x1b[2J') && data.includes('\x1b[H')) {
@@ -353,6 +388,7 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
         const saveInterval = setInterval(() => {
           if (serializeAddonRef.current && currentWorktreeRef.current) {
             const serializedState = serializeAddonRef.current.serialize();
+            console.log(`[PERIODIC-SAVE] Saving state for worktree: ${currentWorktreeRef.current}, length: ${serializedState.length}`);
             terminalStateCache.set(currentWorktreeRef.current, serializedState);
           }
         }, 5000); // Save every 5 seconds

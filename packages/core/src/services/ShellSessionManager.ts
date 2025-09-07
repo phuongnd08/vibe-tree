@@ -77,6 +77,7 @@ export class ShellSessionManager {
     const existingSession = this.sessions.get(sessionId);
     if (existingSession) {
       existingSession.lastActivity = new Date();
+      console.log(`[SESSION-MGR] Reusing existing session ${sessionId} for ${worktreePath}`);
       return {
         success: true,
         processId: sessionId,
@@ -114,7 +115,7 @@ export class ShellSessionManager {
 
       this.sessions.set(sessionId, session);
       
-      console.log(`Started PTY session ${sessionId} in ${worktreePath}`);
+      console.log(`[SESSION-MGR] Started NEW PTY session ${sessionId} in ${worktreePath}`);
       
       return {
         success: true,
@@ -176,8 +177,13 @@ export class ShellSessionManager {
    */
   addOutputListener(sessionId: string, listenerId: string, callback: (data: string) => void): boolean {
     const session = this.sessions.get(sessionId);
-    if (!session) return false;
+    if (!session) {
+      console.log(`[SESSION-MGR] Cannot add listener - session ${sessionId} not found`);
+      return false;
+    }
 
+    console.log(`[SESSION-MGR] Adding output listener ${listenerId} for session ${sessionId}`);
+    
     // Remove old listener if exists
     this.removeOutputListener(sessionId, listenerId);
 
@@ -186,12 +192,14 @@ export class ShellSessionManager {
     
     // Subscribe to PTY data if this is the first listener
     if (session.listeners.size === 1) {
+      console.log(`[SESSION-MGR] First listener - setting up PTY data handler for ${sessionId}`);
       // Dispose of any existing data listener first (shouldn't happen but be safe)
       if (session.dataDisposable) {
         session.dataDisposable.dispose();
       }
       
       session.dataDisposable = onPtyData(session.pty, (data) => {
+        console.log(`[SESSION-MGR] PTY data for ${sessionId}: ${data.substring(0, 50).replace(/\n/g, '\\n')}...`);
         session.listeners.forEach(listener => listener(data));
       });
     }

@@ -15,6 +15,7 @@ class DesktopShellManager {
 
   private setupIpcHandlers() {
     ipcMain.handle('shell:start', async (event, worktreePath: string, cols?: number, rows?: number) => {
+      console.log(`[SHELL-MGR] Starting shell for worktree: ${worktreePath}`);
       // Start session with node-pty spawn function
       const result = await this.sessionManager.startSession(
         worktreePath,
@@ -25,12 +26,15 @@ class DesktopShellManager {
 
       if (result.success && result.processId) {
         const listenerId = `electron-${event.sender.id}`;
+        console.log(`[SHELL-MGR] Shell started - processId: ${result.processId}, isNew: ${result.isNew}, listenerId: ${listenerId}`);
         
         // Only add listeners for new sessions or if they don't exist
         // For existing sessions, listeners should already be set up
         if (result.isNew) {
+          console.log(`[SHELL-MGR] NEW session - adding listeners`);
           // Add output listener
           this.sessionManager.addOutputListener(result.processId, listenerId, (data) => {
+            console.log(`[SHELL-MGR] Output for ${result.processId}: ${data.substring(0, 50).replace(/\n/g, '\\n')}...`);
             event.sender.send(`shell:output:${result.processId}`, data);
           });
 
@@ -39,6 +43,7 @@ class DesktopShellManager {
             event.sender.send(`shell:exit:${result.processId}`, exitCode);
           });
         } else {
+          console.log(`[SHELL-MGR] EXISTING session - updating listeners`);
           // For existing sessions, we need to update the listener to use the current event.sender
           // because the renderer might have changed
           this.sessionManager.removeOutputListener(result.processId, listenerId);
@@ -46,6 +51,7 @@ class DesktopShellManager {
           
           // Re-add with current sender
           this.sessionManager.addOutputListener(result.processId, listenerId, (data) => {
+            console.log(`[SHELL-MGR] Output for existing ${result.processId}: ${data.substring(0, 50).replace(/\n/g, '\\n')}...`);
             event.sender.send(`shell:output:${result.processId}`, data);
           });
 

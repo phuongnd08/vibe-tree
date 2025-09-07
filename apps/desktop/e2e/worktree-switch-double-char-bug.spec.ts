@@ -186,7 +186,7 @@ test.describe('Worktree Switch Double Character Bug', () => {
     expect(terminalContent).toContain('echo');
   });
 
-  test.skip('should preserve terminal content when switching between worktrees without typing', async () => {
+  test('should preserve terminal content when switching between worktrees without typing', async () => {
     test.setTimeout(60000);
 
     await page.waitForLoadState('domcontentloaded');
@@ -233,6 +233,9 @@ test.describe('Worktree Switch Double Character Bug', () => {
     const terminalScreen = page.locator('.xterm-screen');
     await expect(terminalScreen).toBeVisible({ timeout: 5000 });
     
+    // Wait a bit for terminal to stabilize
+    await page.waitForTimeout(1000);
+    
     const initialContent = await terminalScreen.textContent();
     
     // Extract just the visible terminal text, removing the CSS styles
@@ -248,8 +251,11 @@ test.describe('Worktree Switch Double Character Bug', () => {
     };
     
     const initialTerminalText = extractTerminalText(initialContent || '');
+    console.log('===== INITIAL CAPTURE FOR WT1 =====');
     console.log('Initial terminal text for wt1:', initialTerminalText);
     console.log('Initial content length:', initialContent?.length);
+    console.log('Initial content has wt2 reference:', initialContent?.includes('wt2'));
+    console.log('====================================');
 
     // Find and click on wt2 using the data attribute
     const wt2Button = page.locator('button[data-worktree-branch="wt2"]');
@@ -268,7 +274,11 @@ test.describe('Worktree Switch Double Character Bug', () => {
     // Get wt2 content for comparison
     const wt2Content = await terminalScreen.textContent();
     const wt2TerminalText = extractTerminalText(wt2Content || '');
+    console.log('===== AFTER SWITCHING TO WT2 =====');
     console.log('Terminal text for wt2:', wt2TerminalText);
+    console.log('WT2 content has wt1 reference:', wt2Content?.includes('wt1'));
+    console.log('WT2 content has wt2 reference:', wt2Content?.includes('wt2'));
+    console.log('===================================');
 
     // Click back on wt1
     console.log('Clicking back on wt1...');
@@ -278,14 +288,19 @@ test.describe('Worktree Switch Double Character Bug', () => {
     // Get the terminal content after switching back
     const finalContent = await terminalScreen.textContent();
     const finalTerminalText = extractTerminalText(finalContent || '');
+    console.log('===== AFTER SWITCHING BACK TO WT1 =====');
     console.log('Final terminal text for wt1 after switching back:', finalTerminalText);
     console.log('Final content length:', finalContent?.length);
+    console.log('Final content has wt1 reference:', finalContent?.includes('wt1'));
+    console.log('Final content has wt2 reference:', finalContent?.includes('wt2'));
+    console.log('========================================');
     
     // Compare the extracted terminal text
-    console.log('Initial vs Final comparison:');
-    console.log('  Initial:', initialTerminalText);
-    console.log('  Final:  ', finalTerminalText);
-    console.log('  Are they equal?', initialTerminalText === finalTerminalText);
+    console.log('===== COMPARISON =====');
+    console.log('Initial:', initialTerminalText);
+    console.log('Final:  ', finalTerminalText);
+    console.log('Are they equal?', initialTerminalText === finalTerminalText);
+    console.log('=====================');
 
     // Verify that the terminal content remains the same
     expect(finalTerminalText).toBe(initialTerminalText);
