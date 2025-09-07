@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { ClaudeTerminalGrid } from './ClaudeTerminalGrid';
 import { GitDiffView } from './GitDiffView';
@@ -10,8 +10,31 @@ interface RightPaneViewProps {
   theme?: 'light' | 'dark';
 }
 
+// Store terminal grid instances for each worktree
+const terminalGridInstances = new Map<string, HTMLDivElement>();
+
 export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewProps) {
   const [activeTab, setActiveTab] = useState('terminal');
+  const terminalContainerRef = useRef<HTMLDivElement>(null);
+  const [mountedWorktrees, setMountedWorktrees] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!worktreePath || !terminalContainerRef.current) return;
+
+    // Mount this worktree's terminal grid if not already mounted
+    if (!mountedWorktrees.has(worktreePath)) {
+      setMountedWorktrees(prev => new Set([...prev, worktreePath]));
+    }
+
+    // Show/hide terminal grids based on current worktree
+    terminalGridInstances.forEach((gridElement, path) => {
+      if (path === worktreePath) {
+        gridElement.style.display = 'block';
+      } else {
+        gridElement.style.display = 'none';
+      }
+    });
+  }, [worktreePath]);
 
   return (
     <div className="flex-1 flex flex-col h-full">
@@ -41,13 +64,31 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
 
         <TabsContent 
           value="terminal"
-          className="flex-1 m-0 h-full"
+          className="flex-1 m-0 h-full relative"
         >
-          <ClaudeTerminalGrid 
-            worktreePath={worktreePath} 
-            projectId={projectId}
-            theme={theme}
-          />
+          <div ref={terminalContainerRef} className="absolute inset-0">
+            {/* Render a terminal grid for each mounted worktree */}
+            {Array.from(mountedWorktrees).map(path => (
+              <div 
+                key={path}
+                ref={(el) => {
+                  if (el) {
+                    terminalGridInstances.set(path, el);
+                  } else {
+                    terminalGridInstances.delete(path);
+                  }
+                }}
+                className="absolute inset-0"
+                style={{ display: path === worktreePath ? 'block' : 'none' }}
+              >
+                <ClaudeTerminalGrid 
+                  worktreePath={path} 
+                  projectId={projectId}
+                  theme={theme}
+                />
+              </div>
+            ))}
+          </div>
         </TabsContent>
 
         <TabsContent 

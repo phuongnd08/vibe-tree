@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { ClaudeTerminalSingle } from './ClaudeTerminalSingle';
 
 interface GridNode {
@@ -69,9 +69,11 @@ export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: 
     return 0;
   }, []);
 
-  const handleSplit = useCallback((terminalId: string) => {
-    console.log(`[ClaudeTerminalGrid] handleSplit called for terminal: ${terminalId}`);
+  const handleSplit = useCallback((terminalId: string, direction: 'horizontal' | 'vertical' = 'vertical') => {
+    console.log(`[ClaudeTerminalGrid] handleSplit called for terminal: ${terminalId}, direction: ${direction}`);
+    console.log(`[ClaudeTerminalGrid] Next terminal ID will be: ${nextTerminalId}`);
     setRootNode(prevRoot => {
+      console.log(`[ClaudeTerminalGrid] Current root node structure:`, JSON.stringify(prevRoot, null, 2));
       const cloneNode = (node: GridNode): GridNode => {
         if (node.type === 'terminal') {
           return { ...node };
@@ -83,52 +85,42 @@ export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: 
       };
 
       const newRoot = cloneNode(prevRoot);
-      const targetNode = findNodeById(newRoot, terminalId);
       
-      if (targetNode && targetNode.type === 'terminal') {
-        // Convert terminal node to split node
-        const newTerminalId = `terminal-${nextTerminalId}`;
-        const splitNodeId = `split-${nextTerminalId}`;
-        setNextTerminalId(prev => prev + 1);
-        
-        // Create a new split node
-        const newSplitNode: GridNode = {
-          id: splitNodeId,
-          type: 'split',
-          direction: 'vertical',
-          children: [
-            { id: targetNode.id, type: 'terminal' }, // Keep existing terminal
-            { id: newTerminalId, type: 'terminal' }   // Create new terminal
-          ]
-        };
-        
-        // Replace the target node with the split node
-        if (targetNode === newRoot) {
-          // If we're splitting the root, replace the entire root
-          console.log(`[ClaudeTerminalGrid] Split complete - new root structure:`, newSplitNode);
-          return newSplitNode;
-        } else {
-          // Replace the target node in its parent
-          const replaceInParent = (node: GridNode): GridNode => {
-            if (node.type === 'terminal') return node;
-            if (node.children) {
-              return {
-                ...node,
-                children: [
-                  node.children[0].id === terminalId ? newSplitNode : replaceInParent(node.children[0]),
-                  node.children[1].id === terminalId ? newSplitNode : replaceInParent(node.children[1])
-                ]
-              };
-            }
-            return node;
+      // Recursive function to find and replace the target node
+      const replaceNode = (node: GridNode): GridNode => {
+        if (node.id === terminalId && node.type === 'terminal') {
+          // Found the target terminal, replace with split
+          const newTerminalId = `terminal-${nextTerminalId}`;
+          const splitNodeId = `split-${nextTerminalId}`;
+          setNextTerminalId(prev => prev + 1);
+          
+          return {
+            id: splitNodeId,
+            type: 'split',
+            direction: direction,
+            children: [
+              { id: node.id, type: 'terminal' }, // Keep existing terminal
+              { id: newTerminalId, type: 'terminal' }   // Create new terminal
+            ]
           };
-          return replaceInParent(newRoot);
+        } else if (node.type === 'split' && node.children) {
+          // Recursively search in children
+          return {
+            ...node,
+            children: [
+              replaceNode(node.children[0]),
+              replaceNode(node.children[1])
+            ]
+          };
         }
-      }
+        return node;
+      };
       
-      return newRoot;
+      const result = replaceNode(newRoot);
+      console.log(`[ClaudeTerminalGrid] Split complete - new structure:`, result);
+      return result;
     });
-  }, [findNodeById, nextTerminalId]);
+  }, [nextTerminalId]);
 
   const handleClose = useCallback((terminalId: string) => {
     const totalTerminals = countTerminals(rootNode);
@@ -193,10 +185,11 @@ export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: 
     });
   }, [rootNode, countTerminals]);
 
-  const renderNode = useCallback((node: GridNode): React.ReactElement => {
+  // Memoize total terminals count to prevent recalculation on every render
+  const totalTerminals = useMemo(() => countTerminals(rootNode), [rootNode, countTerminals]);
+
+  const renderNode = (node: GridNode): React.ReactElement => {
     if (node.type === 'terminal') {
-      const totalTerminals = countTerminals(rootNode);
-      console.log(`[ClaudeTerminalGrid] Rendering terminal node: ${node.id}, total terminals: ${totalTerminals}`);
       return (
         <ClaudeTerminalSingle
           key={node.id}
@@ -204,7 +197,7 @@ export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: 
           projectId={projectId}
           theme={theme}
           terminalId={node.id}
-          onSplit={() => handleSplit(node.id)}
+          onSplit={(direction) => handleSplit(node.id, direction)}
           onClose={() => handleClose(node.id)}
           canClose={totalTerminals > 1}
         />
@@ -215,8 +208,6 @@ export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: 
       const direction = node.direction || 'vertical';
       const flexDirection = direction === 'horizontal' ? 'flex-col' : 'flex-row';
       const borderClass = direction === 'horizontal' ? 'border-b' : 'border-r';
-      
-      console.log(`[ClaudeTerminalGrid] Rendering split node: ${node.id}, direction: ${direction}, children: [${node.children[0].id}, ${node.children[1].id}]`);
       
       return (
         <div key={node.id} className={`flex ${flexDirection} w-full h-full`}>
@@ -231,7 +222,7 @@ export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: 
     }
 
     return <div key={node.id}>Invalid node</div>;
-  }, [rootNode, worktreePath, projectId, theme, handleSplit, handleClose, countTerminals]);
+  };
 
   return (
     <div className="w-full h-full">

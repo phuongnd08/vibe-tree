@@ -105,8 +105,8 @@ test.describe('Terminal Split Feature Test', () => {
     // Wait for the terminal to load
     await page.waitForTimeout(3000);
 
-    // Find the split button
-    const splitButton = page.locator('button[title="Split Terminal"]');
+    // Find the split vertical button (the correct button title)
+    const splitButton = page.locator('button[title="Split Vertical"]');
     await expect(splitButton).toBeVisible();
 
     // Click the split button to create a split terminal
@@ -115,8 +115,9 @@ test.describe('Terminal Split Feature Test', () => {
     // Wait for split terminal to appear
     await page.waitForTimeout(2000);
 
-    // Verify two terminal containers exist
-    const terminalContainers = page.locator('.xterm-screen');
+    // Verify two terminal containers exist - look for the actual terminal components
+    // Based on ClaudeTerminalSingle component, each terminal has a container div
+    const terminalContainers = page.locator('.flex.flex-col.h-full.bg-background');
     const terminalCount = await terminalContainers.count();
     expect(terminalCount).toBe(2);
 
@@ -193,7 +194,7 @@ test.describe('Terminal Split Feature Test', () => {
     await page.waitForTimeout(3000);
 
     // Click the split button
-    const splitButton = page.locator('button[title="Split Terminal"]');
+    const splitButton = page.locator('button[title="Split Vertical"]');
     await splitButton.click();
     await page.waitForTimeout(2000);
 
@@ -251,7 +252,7 @@ test.describe('Terminal Split Feature Test', () => {
     expect(firstTerminalContent).toContain('SIGNAL');
 
     // Now create a split terminal
-    const splitButton = page.locator('button[title="Split Terminal"]');
+    const splitButton = page.locator('button[title="Split Vertical"]');
     await splitButton.click();
     await page.waitForTimeout(2000);
 

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { terminalManager, type TerminalInstance } from '../services/TerminalManager';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { Code2, Columns2, X } from 'lucide-react';
+import { Code2, Columns2, Rows2, X } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import '@xterm/xterm/css/xterm.css';
 
@@ -11,7 +11,7 @@ interface ClaudeTerminalSingleProps {
   projectId?: string;
   theme?: 'light' | 'dark';
   terminalId: string;
-  onSplit: () => void;
+  onSplit: (direction: 'horizontal' | 'vertical') => void;
   onClose: () => void;
   canClose: boolean;
 }
@@ -106,6 +106,8 @@ export function ClaudeTerminalSingle({
     removeListenersRef.current = [];
 
     const startShell = async () => {
+      console.log(`[ClaudeTerminalSingle] Starting shell for terminal ${terminalId}, current processId: ${terminalInstance.processId}`);
+      
       // Skip if process already running
       if (terminalInstance.processId) {
         console.log(`Terminal ${terminalId} already has process ${terminalInstance.processId}`);
@@ -116,7 +118,10 @@ export function ClaudeTerminalSingle({
         const cols = terminalInstance.terminal.cols;
         const rows = terminalInstance.terminal.rows;
         
+        console.log(`[ClaudeTerminalSingle] Requesting shell start for ${terminalId}, cols: ${cols}, rows: ${rows}`);
         const result = await window.electronAPI.shell.start(worktreePath, cols, rows, false);
+        
+        console.log(`[ClaudeTerminalSingle] Shell start result for ${terminalId}:`, result);
         
         if (!result.success) {
           terminalInstance.terminal.writeln(`\r\nError: ${result.error || 'Failed to start shell'}\r\n`);
@@ -124,7 +129,7 @@ export function ClaudeTerminalSingle({
         }
 
         terminalInstance.processId = result.processId!;
-        console.log(`Shell started for terminal ${terminalId}: ${result.processId}, worktree: ${worktreePath}`);
+        console.log(`[ClaudeTerminalSingle] Shell started for terminal ${terminalId}: ${result.processId}, worktree: ${worktreePath}`);
 
         // Handle terminal input
         const disposable = terminalInstance.terminal.onData((data) => {
@@ -265,10 +270,19 @@ export function ClaudeTerminalSingle({
             variant="ghost" 
             size="icon" 
             className="h-6 w-6"
-            onClick={onSplit}
-            title="Split Terminal"
+            onClick={() => onSplit('vertical')}
+            title="Split Vertical"
           >
             <Columns2 className="h-3.5 w-3.5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6"
+            onClick={() => onSplit('horizontal')}
+            title="Split Horizontal"
+          >
+            <Rows2 className="h-3.5 w-3.5" />
           </Button>
           {canClose && (
             <Button 

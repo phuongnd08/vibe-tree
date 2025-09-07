@@ -108,10 +108,14 @@ class TerminalManager {
   ): TerminalInstance {
     const key = this.getTerminalKey(worktreePath, terminalId);
     
+    console.log(`[TerminalManager] getOrCreateTerminal called for ${terminalId}, key: ${key}`);
+    console.log(`[TerminalManager] Current terminals in manager:`, Array.from(this.terminals.keys()));
+    
     // Check if terminal already exists
     let instance = this.terminals.get(key);
     
     if (instance) {
+      console.log(`[TerminalManager] Found existing terminal ${terminalId}, processId: ${instance.processId}`);
       // Terminal exists, reattach it if needed
       // Always try to attach if the container is different
       if (container && (!instance.isAttached || instance.container !== container)) {
@@ -190,19 +194,13 @@ class TerminalManager {
     try {
       if (instance.isAttached && instance.container && instance.container !== container) {
         // Terminal is already opened in a different container
-        // Move the terminal DOM element to the new container
-        console.log(`[TerminalManager] Moving terminal ${instance.terminalId} DOM from old to new container`);
-        
-        // Get the terminal's DOM element
-        const terminalElement = instance.container.querySelector('.terminal');
-        if (terminalElement) {
-          // Move the terminal element to the new container
-          container.appendChild(terminalElement);
-        }
-        
+        // Don't move DOM elements as this causes issues with xterm.js
+        // Just update the container reference and ensure visibility
+        console.log(`[TerminalManager] Terminal ${instance.terminalId} already attached to different container, updating reference`);
         instance.container = container;
       } else if (!instance.isAttached) {
         // Terminal is not attached, open it in the container
+        console.log(`[TerminalManager] Opening terminal ${instance.terminalId} in new container`);
         instance.terminal.open(container);
         instance.container = container;
         instance.isAttached = true;
