@@ -34,7 +34,7 @@ export function ClaudeTerminalSingle({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    console.log(`Setting up terminal ${terminalId} for worktree ${worktreePath}`);
+    console.log(`[ClaudeTerminalSingle] Setting up terminal ${terminalId} for worktree ${worktreePath}`);
     
     // Get or create terminal instance
     const instance = terminalManager.getOrCreateTerminal(
@@ -266,6 +266,7 @@ export function ClaudeTerminalSingle({
             size="icon" 
             className="h-6 w-6"
             onClick={onSplit}
+            title="Split Terminal"
           >
             <Columns2 className="h-3.5 w-3.5" />
           </Button>
@@ -275,6 +276,7 @@ export function ClaudeTerminalSingle({
               size="icon" 
               className="h-6 w-6"
               onClick={handleCloseTerminal}
+              title="Close Terminal"
             >
               <X className="h-3.5 w-3.5" />
             </Button>

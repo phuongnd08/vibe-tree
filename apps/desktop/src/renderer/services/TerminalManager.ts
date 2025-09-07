@@ -113,14 +113,15 @@ class TerminalManager {
     
     if (instance) {
       // Terminal exists, reattach it if needed
-      if (!instance.isAttached && container) {
+      // Always try to attach if the container is different
+      if (container && (!instance.isAttached || instance.container !== container)) {
         this.attachTerminal(instance, container);
       }
       return instance;
     }
 
     // Create new terminal
-    console.log(`Creating new terminal ${terminalId} for worktree ${worktreePath}`);
+    console.log(`[TerminalManager] Creating new terminal ${terminalId} for worktree ${worktreePath}`);
     
     const term = new Terminal({
       theme: this.getTerminalTheme(theme),
@@ -180,31 +181,37 @@ class TerminalManager {
 
   private attachTerminal(instance: TerminalInstance, container: HTMLDivElement): void {
     if (instance.isAttached && instance.container === container) {
+      console.log(`[TerminalManager] Terminal ${instance.terminalId} already attached to same container, skipping`);
       return; // Already attached to the same container
     }
 
-    // If terminal is attached to a different container, check if we should move it
-    if (instance.isAttached && instance.container && instance.container !== container) {
-      // Check if the existing container is still in DOM and visible
-      const existingContainerVisible = document.body.contains(instance.container) && 
-                                       instance.container.offsetParent !== null;
-      
-      if (existingContainerVisible) {
-        // Don't move terminal from a visible container
-        console.log(`Terminal ${instance.terminalId} is already visible in another container, skipping attachment`);
-        return;
+    console.log(`[TerminalManager] Attaching terminal ${instance.terminalId} to container, isAttached=${instance.isAttached}`);
+    
+    try {
+      if (instance.isAttached && instance.container && instance.container !== container) {
+        // Terminal is already opened in a different container
+        // Move the terminal DOM element to the new container
+        console.log(`[TerminalManager] Moving terminal ${instance.terminalId} DOM from old to new container`);
+        
+        // Get the terminal's DOM element
+        const terminalElement = instance.container.querySelector('.terminal');
+        if (terminalElement) {
+          // Move the terminal element to the new container
+          container.appendChild(terminalElement);
+        }
+        
+        instance.container = container;
+      } else if (!instance.isAttached) {
+        // Terminal is not attached, open it in the container
+        instance.terminal.open(container);
+        instance.container = container;
+        instance.isAttached = true;
       }
       
-      // Detach from the old non-visible container
-      this.detachTerminal(instance);
+      console.log(`[TerminalManager] Successfully attached terminal ${instance.terminalId}`);
+    } catch (error) {
+      console.error(`[TerminalManager] Failed to attach terminal ${instance.terminalId}:`, error);
     }
-
-    console.log(`Attaching terminal ${instance.terminalId} to container`);
-    
-    // Open terminal in new container
-    instance.terminal.open(container);
-    instance.container = container;
-    instance.isAttached = true;
 
     // Fit terminal to container
     setTimeout(() => {
@@ -263,21 +270,16 @@ class TerminalManager {
       return null;
     }
 
-    // Hide currently active terminal if different
-    if (this.activeTerminal && this.activeTerminal !== key) {
-      const activeInstance = this.terminals.get(this.activeTerminal);
-      if (activeInstance && activeInstance.container) {
-        activeInstance.container.style.display = 'none';
-      }
-    }
-
-    // Show this terminal
+    // Don't hide other terminals - in split view, multiple terminals are visible
+    // Just attach this terminal to its container
     if (container) {
-      container.style.display = 'block';
       if (!instance.isAttached || instance.container !== container) {
         this.attachTerminal(instance, container);
       }
-      instance.terminal.focus();
+      // Only focus if terminal is actually visible
+      if (container.offsetParent !== null) {
+        instance.terminal.focus();
+      }
     }
 
     this.activeTerminal = key;

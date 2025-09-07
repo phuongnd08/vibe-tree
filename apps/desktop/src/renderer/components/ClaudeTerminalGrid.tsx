@@ -70,6 +70,7 @@ export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: 
   }, []);
 
   const handleSplit = useCallback((terminalId: string) => {
+    console.log(`[ClaudeTerminalGrid] handleSplit called for terminal: ${terminalId}`);
     setRootNode(prevRoot => {
       const cloneNode = (node: GridNode): GridNode => {
         if (node.type === 'terminal') {
@@ -104,6 +105,7 @@ export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: 
         // Replace the target node with the split node
         if (targetNode === newRoot) {
           // If we're splitting the root, replace the entire root
+          console.log(`[ClaudeTerminalGrid] Split complete - new root structure:`, newSplitNode);
           return newSplitNode;
         } else {
           // Replace the target node in its parent
@@ -194,6 +196,7 @@ export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: 
   const renderNode = useCallback((node: GridNode): React.ReactElement => {
     if (node.type === 'terminal') {
       const totalTerminals = countTerminals(rootNode);
+      console.log(`[ClaudeTerminalGrid] Rendering terminal node: ${node.id}, total terminals: ${totalTerminals}`);
       return (
         <ClaudeTerminalSingle
           key={node.id}
@@ -212,6 +215,8 @@ export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: 
       const direction = node.direction || 'vertical';
       const flexDirection = direction === 'horizontal' ? 'flex-col' : 'flex-row';
       const borderClass = direction === 'horizontal' ? 'border-b' : 'border-r';
+      
+      console.log(`[ClaudeTerminalGrid] Rendering split node: ${node.id}, direction: ${direction}, children: [${node.children[0].id}, ${node.children[1].id}]`);
       
       return (
         <div key={node.id} className={`flex ${flexDirection} w-full h-full`}>
