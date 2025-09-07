@@ -709,6 +709,48 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
     };
   }, [isSplit, worktreePath, theme]);
 
+  // Trigger resize when split state changes to ensure proper 50/50 layout
+  useEffect(() => {
+    const handleSplitResize = () => {
+      // Small delay to ensure DOM has updated
+      setTimeout(() => {
+        // Trigger resize for main terminal
+        if (terminalRef.current && fitAddonRef.current) {
+          try {
+            fitAddonRef.current.fit();
+            if (processIdRef.current && terminal) {
+              window.electronAPI.shell.resize(
+                processIdRef.current,
+                terminal.cols,
+                terminal.rows
+              );
+            }
+          } catch (err) {
+            console.error('Error resizing main terminal after split:', err);
+          }
+        }
+        
+        // Trigger resize for split terminal
+        if (isSplit && splitTerminalRef.current && splitFitAddonRef.current) {
+          try {
+            splitFitAddonRef.current.fit();
+            if (splitProcessIdRef.current && splitTerminal) {
+              window.electronAPI.shell.resize(
+                splitProcessIdRef.current,
+                splitTerminal.cols,
+                splitTerminal.rows
+              );
+            }
+          } catch (err) {
+            console.error('Error resizing split terminal after split:', err);
+          }
+        }
+      }, 100);
+    };
+
+    handleSplitResize();
+  }, [isSplit, terminal, splitTerminal]);
+
   return (
     <div className="flex-1 flex flex-col h-full">
       <div className="h-[57px] px-4 border-b flex items-center justify-between flex-shrink-0">
@@ -759,25 +801,73 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
       </div>
 
       <div className={`flex-1 min-h-0 flex ${isSplit ? 'flex-row' : ''}`}>
-        <div 
-          ref={terminalRef} 
-          className={`${isSplit ? 'w-1/2 border-r' : 'w-full'} h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
-          style={{ minHeight: '100px' }}
-        />
+        <div className={`${isSplit ? 'w-1/2 border-r' : 'w-full'} h-full flex flex-col`}>
+          <div 
+            ref={terminalRef} 
+            className={`flex-1 ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
+            style={{ minHeight: '100px' }}
+          />
+        </div>
         {isSplit && (
-          <div className="w-1/2 h-full relative">
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={closeSplitTerminal}
-              className="absolute top-2 right-2 z-10"
-              title="Close Split Terminal"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+          <div className="w-1/2 h-full flex flex-col">
+            {/* Split terminal header */}
+            <div className="h-[57px] px-4 border-b flex items-center justify-between flex-shrink-0">
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold">Terminal (Split)</h3>
+                <p className="text-xs text-muted-foreground truncate">{worktreePath}</p>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={toggleSplit}
+                  title="Split Terminal"
+                >
+                  <Columns2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={closeSplitTerminal}
+                  title="Close Split Terminal"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                {detectedIDEs.length > 0 && (
+                  detectedIDEs.length === 1 ? (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleOpenInIDE(detectedIDEs[0].name)}
+                      title={`Open in ${detectedIDEs[0].name}`}
+                    >
+                      <Code2 className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="ghost">
+                          <Code2 className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        {detectedIDEs.map((ide) => (
+                          <DropdownMenuItem
+                            key={ide.name}
+                            onClick={() => handleOpenInIDE(ide.name)}
+                          >
+                            Open in {ide.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )
+                )}
+              </div>
+            </div>
             <div 
               ref={splitTerminalRef} 
-              className={`h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
+              className={`flex-1 ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
               style={{ minHeight: '100px' }}
             />
           </div>
