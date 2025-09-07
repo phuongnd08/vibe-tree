@@ -16,8 +16,8 @@ const api = {
       ipcRenderer.invoke('git:diff-staged', worktreePath, filePath),
   },
   shell: {
-    start: (worktreePath: string, cols?: number, rows?: number, forceNew?: boolean) => 
-      ipcRenderer.invoke('shell:start', worktreePath, cols, rows, forceNew),
+    start: (worktreePath: string, cols?: number, rows?: number, forceNew?: boolean, terminalId?: string) => 
+      ipcRenderer.invoke('shell:start', worktreePath, cols, rows, forceNew, terminalId),
     write: (processId: string, data: string) => 
       ipcRenderer.invoke('shell:write', processId, data),
     resize: (processId: string, cols: number, rows: number) => 

@@ -2,13 +2,16 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { SerializeAddon } from '@xterm/addon-serialize';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
+import { SerializeAddon } from '@xterm/addon-serialize';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Code2, Columns2, X } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import '@xterm/xterm/css/xterm.css';
+
+// Cache terminal state per worktree:terminalId combination
+const terminalStateCache = new Map<string, string>();
 
 interface ClaudeTerminalSingleProps {
   worktreePath: string;
@@ -18,14 +21,6 @@ interface ClaudeTerminalSingleProps {
   onSplit: () => void;
   onClose: () => void;
   canClose: boolean;
-}
-
-// Cache for terminal states per worktree and terminal ID
-const terminalStateCache = new Map<string, string>();
-
-// Helper to create cache key from worktree path and terminal ID
-function getCacheKey(worktreePath: string, terminalId: string): string {
-  return `${worktreePath}::${terminalId}`;
 }
 
 export function ClaudeTerminalSingle({ 
@@ -42,8 +37,11 @@ export function ClaudeTerminalSingle({
   const fitAddonRef = useRef<FitAddon | null>(null);
   const serializeAddonRef = useRef<SerializeAddon | null>(null);
   const removeListenersRef = useRef<Array<() => void>>([]);
+  const previousWorktreeRef = useRef<string>('');
   const [detectedIDEs, setDetectedIDEs] = useState<Array<{ name: string; command: string }>>([]);
   const { toast } = useToast();
+  
+  const getCacheKey = (worktree: string, id: string) => `${worktree}:${id}`;
 
   const getTerminalTheme = useCallback((currentTheme: 'light' | 'dark') => {
     if (currentTheme === 'light') {
@@ -121,14 +119,14 @@ export function ClaudeTerminalSingle({
     const fitAddon = new FitAddon();
     fitAddonRef.current = fitAddon;
     
+    const serializeAddon = new SerializeAddon();
+    serializeAddonRef.current = serializeAddon;
+    term.loadAddon(serializeAddon);
+    
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
       window.electronAPI.shell.openExternal(uri);
     });
     term.loadAddon(webLinksAddon);
-    
-    const serializeAddon = new SerializeAddon();
-    serializeAddonRef.current = serializeAddon;
-    term.loadAddon(serializeAddon);
     
     const unicode11Addon = new Unicode11Addon();
     term.loadAddon(unicode11Addon);
@@ -191,19 +189,17 @@ export function ClaudeTerminalSingle({
     };
   }, [theme, getTerminalTheme, terminalId]);
 
-  // Save terminal state before unmounting
-  useEffect(() => {
-    return () => {
-      if (terminal && serializeAddonRef.current && processIdRef.current) {
-        const serializedState = serializeAddonRef.current.serialize();
-        terminalStateCache.set(getCacheKey(worktreePath, terminalId), serializedState);
-      }
-    };
-  }, [terminal, worktreePath, terminalId]);
-
   // Auto-start shell when worktree changes
   useEffect(() => {
     if (!terminal || !worktreePath) return;
+
+    // Save current terminal state before switching
+    if (previousWorktreeRef.current && previousWorktreeRef.current !== worktreePath && serializeAddonRef.current) {
+      const previousKey = getCacheKey(previousWorktreeRef.current, terminalId);
+      const serialized = serializeAddonRef.current.serialize();
+      terminalStateCache.set(previousKey, serialized);
+      console.log(`Saved terminal state for ${previousKey}`);
+    }
 
     removeListenersRef.current.forEach(remove => remove());
     removeListenersRef.current = [];
@@ -213,7 +209,10 @@ export function ClaudeTerminalSingle({
         const cols = terminal.cols;
         const rows = terminal.rows;
         
-        const result = await window.electronAPI.shell.start(worktreePath, cols, rows, true); // Always force new for split terminals
+        // Check if we're switching worktrees
+        const isSwitchingWorktree = previousWorktreeRef.current && previousWorktreeRef.current !== worktreePath;
+        
+        const result = await window.electronAPI.shell.start(worktreePath, cols, rows, false, terminalId); // Use terminal ID for session isolation
         
         if (!result.success) {
           terminal.writeln(`\r\nError: ${result.error || 'Failed to start shell'}\r\n`);
@@ -221,20 +220,23 @@ export function ClaudeTerminalSingle({
         }
 
         processIdRef.current = result.processId!;
-        console.log(`Shell started for ${terminalId}: ${result.processId}, isNew: ${result.isNew}, worktree: ${worktreePath}`);
+        console.log(`Shell started for ${terminalId}: ${result.processId}, isNew: ${result.isNew}, worktree: ${worktreePath}, switching: ${isSwitchingWorktree}`);
 
-        if (result.isNew) {
-          terminal.clear();
-        } else {
-          const cachedState = terminalStateCache.get(getCacheKey(worktreePath, terminalId));
-          terminal.clear();
-          
-          setTimeout(() => {
-            if (cachedState) {
-              terminal.write(cachedState);
-            }
-          }, 50);
+        // Clear terminal and restore cached state if available
+        terminal.clear();
+        
+        if (!result.isNew) {
+          // Try to restore cached terminal state for this worktree
+          const cacheKey = getCacheKey(worktreePath, terminalId);
+          const cachedState = terminalStateCache.get(cacheKey);
+          if (cachedState) {
+            terminal.write(cachedState);
+            console.log(`Restored terminal state for ${cacheKey}`);
+          }
         }
+        
+        // Update previous worktree ref
+        previousWorktreeRef.current = worktreePath;
         
         terminal.focus();
         
@@ -304,8 +306,9 @@ export function ClaudeTerminalSingle({
         // Periodically save terminal state
         const saveInterval = setInterval(() => {
           if (serializeAddonRef.current && processIdRef.current) {
-            const serializedState = serializeAddonRef.current.serialize();
-            terminalStateCache.set(getCacheKey(worktreePath, terminalId), serializedState);
+            const cacheKey = getCacheKey(worktreePath, terminalId);
+            const serialized = serializeAddonRef.current.serialize();
+            terminalStateCache.set(cacheKey, serialized);
           }
         }, 5000);
 
@@ -325,9 +328,11 @@ export function ClaudeTerminalSingle({
     startShell();
 
     return () => {
+      // Save terminal state before cleanup
       if (serializeAddonRef.current && processIdRef.current) {
-        const serializedState = serializeAddonRef.current.serialize();
-        terminalStateCache.set(getCacheKey(worktreePath, terminalId), serializedState);
+        const cacheKey = getCacheKey(worktreePath, terminalId);
+        const serialized = serializeAddonRef.current.serialize();
+        terminalStateCache.set(cacheKey, serialized);
       }
       
       removeListenersRef.current.forEach(remove => remove());

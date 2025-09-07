@@ -14,14 +14,15 @@ class DesktopShellManager {
   }
 
   private setupIpcHandlers() {
-    ipcMain.handle('shell:start', async (event, worktreePath: string, cols?: number, rows?: number, forceNew?: boolean) => {
+    ipcMain.handle('shell:start', async (event, worktreePath: string, cols?: number, rows?: number, forceNew?: boolean, terminalId?: string) => {
       // Start session with node-pty spawn function
       const result = await this.sessionManager.startSession(
         worktreePath,
         cols,
         rows,
         pty.spawn,
-        forceNew
+        forceNew,
+        terminalId
       );
 
       if (result.success && result.processId) {
@@ -45,10 +46,10 @@ class DesktopShellManager {
           this.sessionManager.removeOutputListener(result.processId, listenerId);
           this.sessionManager.removeExitListener(result.processId, listenerId);
           
-          // Re-add with current sender
+          // Re-add with current sender, but skip buffer replay for existing sessions
           this.sessionManager.addOutputListener(result.processId, listenerId, (data) => {
             event.sender.send(`shell:output:${result.processId}`, data);
-          });
+          }, true); // Skip replay for existing sessions
 
           this.sessionManager.addExitListener(result.processId, listenerId, (exitCode) => {
             event.sender.send(`shell:exit:${result.processId}`, exitCode);

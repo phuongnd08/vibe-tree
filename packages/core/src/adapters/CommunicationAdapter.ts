@@ -22,9 +22,10 @@ export interface CommunicationAdapter {
    * @param cols - Initial terminal columns (default: 80)
    * @param rows - Initial terminal rows (default: 30)
    * @param forceNew - Force creation of a new independent session (default: false)
+   * @param terminalId - Optional terminal ID for session isolation
    * @returns Shell session result with process ID
    */
-  startShell(worktreePath: string, cols?: number, rows?: number, forceNew?: boolean): Promise<ShellStartResult>;
+  startShell(worktreePath: string, cols?: number, rows?: number, forceNew?: boolean, terminalId?: string): Promise<ShellStartResult>;
   
   /**
    * Write data to an active shell session
@@ -149,7 +150,7 @@ export interface CommunicationAdapter {
  * Concrete adapters (IPC, WebSocket) should extend this class.
  */
 export abstract class BaseAdapter implements CommunicationAdapter {
-  abstract startShell(worktreePath: string, cols?: number, rows?: number, forceNew?: boolean): Promise<ShellStartResult>;
+  abstract startShell(worktreePath: string, cols?: number, rows?: number, forceNew?: boolean, terminalId?: string): Promise<ShellStartResult>;
   abstract writeToShell(processId: string, data: string): Promise<ShellWriteResult>;
   abstract resizeShell(processId: string, cols: number, rows: number): Promise<ShellResizeResult>;
   abstract getShellStatus(processId: string): Promise<{ running: boolean }>;

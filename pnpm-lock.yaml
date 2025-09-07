@@ -66,7 +66,7 @@ importers:
         specifier: ^0.16.0-beta.118
         version: 0.16.0-beta.118(@xterm/xterm@5.6.0-beta.118)
       '@xterm/addon-serialize':
-        specifier: ^0.14.0-beta.118
+        specifier: 0.14.0-beta.118
         version: 0.14.0-beta.118(@xterm/xterm@5.6.0-beta.118)
       '@xterm/addon-unicode11':
         specifier: ^0.9.0-beta.118

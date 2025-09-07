@@ -18,8 +18,8 @@ interface ClaudeTerminalGridProps {
 const worktreeGridStateCache = new Map<string, GridNode>();
 
 export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: ClaudeTerminalGridProps) {
-  const [rootNode, setRootNode] = useState<GridNode>(() => {
-    // Initialize from cache for this worktree
+  // Get or create initial state for this worktree
+  const getInitialState = useCallback(() => {
     const cached = worktreeGridStateCache.get(worktreePath);
     if (cached) {
       return cached;
@@ -28,33 +28,25 @@ export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: 
       id: 'terminal-1',
       type: 'terminal'
     };
-  });
-  const [nextTerminalId, setNextTerminalId] = useState(2);
-  const [previousWorktree, setPreviousWorktree] = useState(worktreePath);
+  }, [worktreePath]);
 
-  // Save grid state to cache for the previous worktree and load state for new worktree
+  const [rootNode, setRootNode] = useState<GridNode>(getInitialState);
+  const [nextTerminalId, setNextTerminalId] = useState(2);
+
+  // Handle worktree changes
   useEffect(() => {
-    if (previousWorktree !== worktreePath) {
-      // Save the current state to the previous worktree's cache
-      if (previousWorktree) {
-        worktreeGridStateCache.set(previousWorktree, rootNode);
-      }
-      
-      // Load the state for the new worktree
-      const cached = worktreeGridStateCache.get(worktreePath);
-      if (cached) {
-        setRootNode(cached);
-      } else {
-        // Reset to single terminal for new worktree
-        setRootNode({
-          id: 'terminal-1',
-          type: 'terminal'
-        });
-      }
-      
-      setPreviousWorktree(worktreePath);
+    // Load the state for the current worktree
+    const cached = worktreeGridStateCache.get(worktreePath);
+    if (cached) {
+      setRootNode(cached);
+    } else {
+      // Reset to single terminal for new worktree
+      setRootNode({
+        id: 'terminal-1',
+        type: 'terminal'
+      });
     }
-  }, [worktreePath, previousWorktree, rootNode]);
+  }, [worktreePath]);
 
   // Save current state to cache when rootNode changes
   useEffect(() => {
