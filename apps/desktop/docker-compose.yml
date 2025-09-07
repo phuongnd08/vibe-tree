@@ -10,16 +10,17 @@ services:
       - /app/packages/ui/node_modules
     environment:
       - CI=true
+      - DISPLAY=:99.0
       - ELECTRON_DISABLE_SANDBOX=1
     command: |
       sh -c "
         apt-get update &&
-        apt-get install -y python3-setuptools python3-dev build-essential &&
+        apt-get install -y python3-setuptools python3-dev build-essential xvfb &&
         npm install -g pnpm@8.14.0 &&
         pnpm install --frozen-lockfile &&
         pnpm build:deps &&
         pnpm --filter @vibetree/desktop build &&
         cd apps/desktop &&
         npx tsc src/main/test-index.ts --outDir dist/main --target es2020 --module commonjs --esModuleInterop --allowSyntheticDefaultImports --resolveJsonModule &&
-        pnpm exec playwright test --reporter=list
+        xvfb-run --auto-servernum --server-args='-screen 0 1280x960x24' -- pnpm exec playwright test --reporter=list
       "

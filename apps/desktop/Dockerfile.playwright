@@ -1,10 +1,11 @@
 FROM mcr.microsoft.com/playwright:v1.49.1-noble
 
-# Install build dependencies for native modules
+# Install build dependencies for native modules and Xvfb for Electron tests
 RUN apt-get update && apt-get install -y \
     python3-setuptools \
     python3-dev \
     build-essential \
+    xvfb \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -36,7 +37,8 @@ RUN cd apps/desktop && npx tsc src/main/test-index.ts --outDir dist/main --targe
 
 # Set environment variables for Electron
 ENV CI=true
+ENV DISPLAY=:99.0
 ENV ELECTRON_DISABLE_SANDBOX=1
 
-# Run tests
-CMD ["pnpm", "--filter", "@vibetree/desktop", "exec", "playwright", "test", "--reporter=list"]
+# Run tests with Xvfb
+CMD ["sh", "-c", "xvfb-run --auto-servernum --server-args='-screen 0 1280x960x24' -- pnpm --filter @vibetree/desktop exec playwright test --reporter=list"]

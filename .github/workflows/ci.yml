@@ -180,7 +180,7 @@ jobs:
     - name: Install build dependencies
       run: |
         apt-get update
-        apt-get install -y python3-setuptools python3-dev build-essential
+        apt-get install -y python3-setuptools python3-dev build-essential xvfb
 
     - name: Setup pnpm
       run: npm install -g pnpm@8.14.0
@@ -200,9 +200,10 @@ jobs:
         npx tsc src/main/test-index.ts --outDir dist/main --target es2020 --module commonjs --esModuleInterop --allowSyntheticDefaultImports --resolveJsonModule
 
     - name: Run e2e tests
-      run: pnpm --filter @vibetree/desktop exec playwright test --reporter=list
+      run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" -- pnpm --filter @vibetree/desktop exec playwright test --reporter=list
       env:
         CI: true
+        DISPLAY: ':99.0'
         ELECTRON_DISABLE_SANDBOX: 1
 
     - name: Upload test results
