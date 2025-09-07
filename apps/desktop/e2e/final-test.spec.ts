@@ -10,8 +10,12 @@ test.beforeAll(async () => {
   const testMainPath = path.join(__dirname, '../dist/main/test-index.js');
   console.log('Using test main file:', testMainPath);
   
+  // In CI, we need to specify the app directory explicitly
+  const appDir = path.join(__dirname, '..');
+  
   electronApp = await electron.launch({
     args: [testMainPath],
+    cwd: appDir,
   });
   
   // Wait for the first BrowserWindow to open

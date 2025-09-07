@@ -199,6 +199,16 @@ jobs:
         cd apps/desktop
         npx tsc src/main/test-index.ts --outDir dist/main --target es2020 --module commonjs --esModuleInterop --allowSyntheticDefaultImports --resolveJsonModule
 
+    - name: Fix Electron installation
+      run: |
+        # Find and fix Electron installation
+        ELECTRON_DIR=$(find node_modules/.pnpm -maxdepth 2 -name "electron@*" -type d | head -1)
+        if [ -n "$ELECTRON_DIR" ]; then
+          cd "$ELECTRON_DIR/node_modules/electron"
+          rm -rf dist
+          npm run postinstall
+        fi
+
     - name: Run e2e tests
       run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" -- pnpm --filter @vibetree/desktop exec playwright test --reporter=list
       env:
