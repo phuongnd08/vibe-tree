@@ -5,7 +5,7 @@ import fs from 'fs';
 import { execSync } from 'child_process';
 import os from 'os';
 
-test.describe('Worktree Nano Editor Content Preservation', () => {
+test.describe('Worktree Terminal Exact Content Preservation', () => {
   let electronApp: ElectronApplication;
   let page: Page;
   let dummyRepoPath: string;
@@ -72,8 +72,7 @@ test.describe('Worktree Nano Editor Content Preservation', () => {
     }
   });
 
-  test.skip('should preserve nano editor content when switching between worktrees', async () => {
-    // Skip this test in CI as nano is not available in the Docker container
+  test('should preserve exact terminal output when switching between worktrees', async () => {
     test.setTimeout(90000);
 
     await page.waitForLoadState('domcontentloaded');
@@ -101,8 +100,8 @@ test.describe('Worktree Nano Editor Content Preservation', () => {
     // Wait for worktree list to appear
     await page.waitForTimeout(3000);
 
-    // Step 1: Switch to wt1 and open nano
-    console.log('\n=== STEP 1: SWITCHING TO WT1 AND OPENING NANO ===');
+    // Step 1: Switch to wt1 and create distinctive terminal output
+    console.log('\n=== STEP 1: SWITCHING TO WT1 AND CREATING OUTPUT ===');
     const wt1Button = page.locator('button[data-worktree-branch="wt1"]');
     const wt1Count = await wt1Button.count();
     console.log(`Found ${wt1Count} wt1 button(s)`);
@@ -130,35 +129,47 @@ test.describe('Worktree Nano Editor Content Preservation', () => {
     console.log(`Terminal count in wt1: ${terminalCount}`);
     expect(terminalCount).toBe(1);
     
-    // Click terminal to focus and open nano
+    // Click terminal to focus and create output with special formatting
     const wt1Terminal = terminalContainers.first();
     await wt1Terminal.click();
     await page.waitForTimeout(500);
     
-    // Create a test file first
-    console.log('Creating test file...');
-    await page.keyboard.type('echo "Initial content" > test.txt');
+    // Create multi-line output with special characters that would be affected by terminal state
+    console.log('Creating formatted terminal output...');
+    
+    // Create a unique pattern that tests terminal preservation
+    await page.keyboard.type('echo "╔══════════════════════════════╗"');
     await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    
+    await page.keyboard.type('echo "║  TERMINAL STATE TEST - WT1  ║"');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    
+    await page.keyboard.type('echo "║  Line 1: Test Content 🚀     ║"');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    
+    await page.keyboard.type('echo "║  Line 2: Special chars: <>& ║"');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    
+    await page.keyboard.type('echo "╚══════════════════════════════╝"');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    
+    // Type a partial command but don't execute it (simulates mid-typing state)
+    await page.keyboard.type('echo "This command is not executed yet');
+    // Don't press Enter - leave it incomplete
     await page.waitForTimeout(1000);
     
-    // Open nano with the test file
-    console.log('Opening nano editor...');
-    await page.keyboard.type('nano test.txt');
-    await page.keyboard.press('Enter');
-    await page.waitForTimeout(2000);
+    // Capture the exact terminal content
+    const wt1TerminalContentBefore = await wt1Terminal.textContent();
+    console.log('Terminal content captured');
+    console.log(`Terminal content length: ${wt1TerminalContentBefore?.length} characters`);
     
-    // Type some content in nano
-    console.log('Typing content in nano...');
-    await page.keyboard.type('This is test content in nano editor');
-    await page.keyboard.press('Enter');
-    await page.keyboard.type('Line 2: Terminal preservation test');
-    await page.keyboard.press('Enter');
-    await page.keyboard.type('Line 3: Should stay visible after switch');
-    await page.waitForTimeout(1000);
-    
-    // Capture the visible terminal lines (excluding CSS and other DOM artifacts)
+    // Capture line-by-line content for exact comparison
     const wt1TerminalLinesBefore = await wt1Terminal.evaluate(el => {
-      // Get all the visible text lines from the terminal
       const lines = [];
       const rows = el.querySelectorAll('.xterm-rows > div');
       rows.forEach(row => {
@@ -168,32 +179,19 @@ test.describe('Worktree Nano Editor Content Preservation', () => {
       return lines;
     });
     
-    console.log('Nano editor content captured');
-    console.log(`Terminal has ${wt1TerminalLinesBefore.length} lines`);
-    console.log('First few lines:', wt1TerminalLinesBefore.slice(0, 5));
+    console.log(`Captured ${wt1TerminalLinesBefore.length} lines`);
+    console.log('Last few lines:', wt1TerminalLinesBefore.slice(-5));
     
-    // Verify nano is running (check for nano/pico in the lines)
+    // Verify our output is present
     const terminalText = wt1TerminalLinesBefore.join('\n');
-    expect(terminalText.toLowerCase()).toMatch(/gnu nano|pico/);
-    expect(terminalText).toContain('test.txt');
-    expect(terminalText).toContain('This is test content in nano editor');
-    expect(terminalText).toContain('Line 2: Terminal preservation test');
-    expect(terminalText).toContain('Line 3: Should stay visible after switch');
+    expect(terminalText).toContain('TERMINAL STATE TEST - WT1');
+    expect(terminalText).toContain('Line 1: Test Content');
+    expect(terminalText).toContain('Line 2: Special chars');
+    expect(terminalText).toContain('This command is not executed yet');
     
-    // Store the exact lines for later comparison
+    // Store the exact content for comparison
     const originalTerminalLines = wt1TerminalLinesBefore;
-    
-    // Get terminal dimensions for verification
-    const terminalDimensions = await wt1Terminal.evaluate(el => {
-      const rect = el.getBoundingClientRect();
-      return {
-        width: rect.width,
-        height: rect.height,
-        cols: Math.floor(rect.width / 9), // Approximate character width
-        rows: Math.floor(rect.height / 17) // Approximate line height
-      };
-    });
-    console.log('Terminal dimensions:', terminalDimensions);
+    const originalTerminalContent = wt1TerminalContentBefore;
 
     // Step 2: Switch to main branch
     console.log('\n=== STEP 2: SWITCHING TO MAIN BRANCH ===');
@@ -212,17 +210,17 @@ test.describe('Worktree Nano Editor Content Preservation', () => {
     console.log(`Terminal count in main: ${terminalCount}`);
     expect(terminalCount).toBe(1);
     
-    // Type something in main terminal to make it distinct
+    // Type something different in main terminal
     const mainTerminal = terminalContainers.first();
     await mainTerminal.click();
     await page.waitForTimeout(500);
-    await page.keyboard.type('echo "This is main branch"');
+    await page.keyboard.type('echo "This is the MAIN branch terminal"');
     await page.keyboard.press('Enter');
     await page.waitForTimeout(1000);
     
     const mainTerminalContent = await mainTerminal.textContent();
     console.log(`Main terminal content preview: ${mainTerminalContent?.substring(0, 100)}...`);
-    expect(mainTerminalContent).toContain('This is main branch');
+    expect(mainTerminalContent).toContain('This is the MAIN branch terminal');
 
     // Step 3: Switch back to wt1
     console.log('\n=== STEP 3: SWITCHING BACK TO WT1 ===');
@@ -231,8 +229,8 @@ test.describe('Worktree Nano Editor Content Preservation', () => {
     console.log('Waiting for wt1 worktree to load...');
     await page.waitForTimeout(3000);
 
-    // Step 4: Verify nano editor content is preserved
-    console.log('\n=== STEP 4: VERIFYING NANO CONTENT PRESERVATION ===');
+    // Step 4: Verify terminal content is EXACTLY preserved
+    console.log('\n=== STEP 4: VERIFYING EXACT TERMINAL PRESERVATION ===');
     terminalContainers = page.locator('.xterm-screen');
     terminalCount = await terminalContainers.count();
     console.log(`Terminal count in wt1 (after switch back): ${terminalCount}`);
@@ -240,9 +238,12 @@ test.describe('Worktree Nano Editor Content Preservation', () => {
     
     const wt1TerminalAfter = terminalContainers.first();
     
-    // Capture the visible terminal lines after switching back
+    // Capture the exact content after switching back
+    const wt1TerminalContentAfter = await wt1TerminalAfter.textContent();
+    console.log(`Terminal content length after switch: ${wt1TerminalContentAfter?.length} characters`);
+    
+    // Capture line-by-line content after switching back
     const wt1TerminalLinesAfter = await wt1TerminalAfter.evaluate(el => {
-      // Get all the visible text lines from the terminal
       const lines = [];
       const rows = el.querySelectorAll('.xterm-rows > div');
       rows.forEach(row => {
@@ -253,67 +254,63 @@ test.describe('Worktree Nano Editor Content Preservation', () => {
     });
     
     console.log(`Terminal has ${wt1TerminalLinesAfter.length} lines after switching back`);
-    console.log('First few lines after switch:', wt1TerminalLinesAfter.slice(0, 5));
+    console.log('Last few lines after switch:', wt1TerminalLinesAfter.slice(-5));
     
-    // CRITICAL: Verify the terminal content is EXACTLY identical
-    console.log('\nComparing terminal content:');
+    // CRITICAL: Verify the content is EXACTLY identical
+    console.log('\n=== COMPARING TERMINAL CONTENT ===');
+    console.log(`Original content length: ${originalTerminalContent?.length}`);
+    console.log(`After switch content length: ${wt1TerminalContentAfter?.length}`);
     console.log(`Original lines count: ${originalTerminalLines.length}`);
     console.log(`After switch lines count: ${wt1TerminalLinesAfter.length}`);
     
-    // Compare line by line for better debugging
-    let mismatchFound = false;
-    for (let i = 0; i < Math.max(originalTerminalLines.length, wt1TerminalLinesAfter.length); i++) {
-      if (originalTerminalLines[i] !== wt1TerminalLinesAfter[i]) {
-        if (!mismatchFound) {
-          console.log(`\n❌ Terminal content MISMATCH detected at line ${i}!`);
-          console.log(`Original line ${i}: "${originalTerminalLines[i]}"`);
-          console.log(`After line ${i}: "${wt1TerminalLinesAfter[i]}"`);
-          mismatchFound = true;
+    // Check for exact match
+    if (originalTerminalContent !== wt1TerminalContentAfter) {
+      console.log('\n❌ Terminal CONTENT mismatch detected!');
+      // Find first difference
+      const minLen = Math.min(originalTerminalContent?.length || 0, wt1TerminalContentAfter?.length || 0);
+      for (let i = 0; i < minLen; i++) {
+        if (originalTerminalContent?.[i] !== wt1TerminalContentAfter?.[i]) {
+          console.log(`First difference at position ${i}:`);
+          console.log(`Original: "${originalTerminalContent?.substring(Math.max(0, i-20), i+20)}"`);
+          console.log(`After:    "${wt1TerminalContentAfter?.substring(Math.max(0, i-20), i+20)}"`);
+          break;
         }
       }
     }
     
-    // The terminal lines should be EXACTLY identical
+    // Compare line by line for better debugging
+    let linesMismatch = false;
+    for (let i = 0; i < Math.max(originalTerminalLines.length, wt1TerminalLinesAfter.length); i++) {
+      if (originalTerminalLines[i] !== wt1TerminalLinesAfter[i]) {
+        if (!linesMismatch) {
+          console.log(`\n❌ Terminal LINES mismatch detected at line ${i}!`);
+          console.log(`Original line ${i}: "${originalTerminalLines[i]}"`);
+          console.log(`After line ${i}: "${wt1TerminalLinesAfter[i]}"`);
+          linesMismatch = true;
+        }
+      }
+    }
+    
+    // The terminal content should be EXACTLY identical
+    expect(wt1TerminalContentAfter).toBe(originalTerminalContent);
     expect(wt1TerminalLinesAfter).toEqual(originalTerminalLines);
     
-    // Also verify the content contains what we expect
+    // Verify specific content is still present
     const terminalTextAfter = wt1TerminalLinesAfter.join('\n');
-    expect(terminalTextAfter).toContain('This is test content in nano editor');
-    expect(terminalTextAfter).toContain('Line 2: Terminal preservation test');
-    expect(terminalTextAfter).toContain('Line 3: Should stay visible after switch');
+    expect(terminalTextAfter).toContain('TERMINAL STATE TEST - WT1');
+    expect(terminalTextAfter).toContain('Line 1: Test Content');
+    expect(terminalTextAfter).toContain('Line 2: Special chars');
+    expect(terminalTextAfter).toContain('This command is not executed yet');
     
-    // Verify terminal dimensions are preserved
-    const terminalDimensionsAfter = await wt1TerminalAfter.evaluate(el => {
-      const rect = el.getBoundingClientRect();
-      return {
-        width: rect.width,
-        height: rect.height,
-        cols: Math.floor(rect.width / 9), // Approximate character width
-        rows: Math.floor(rect.height / 17) // Approximate line height
-      };
-    });
-    console.log('Terminal dimensions after switch:', terminalDimensionsAfter);
-    
-    // Compare dimensions (allowing small variance)
-    expect(Math.abs(terminalDimensions.cols - terminalDimensionsAfter.cols)).toBeLessThanOrEqual(2);
-    expect(Math.abs(terminalDimensions.rows - terminalDimensionsAfter.rows)).toBeLessThanOrEqual(2);
-    
-    // Additional verification: ensure it doesn't contain main branch content
-    expect(terminalTextAfter).not.toContain('This is main branch');
+    // Verify it doesn't contain main branch content
+    expect(terminalTextAfter).not.toContain('This is the MAIN branch terminal');
     console.log('✓ Verified wt1 terminal does not contain main branch content');
     
-    // Exit nano gracefully (Ctrl+X)
-    console.log('Exiting nano editor...');
-    await page.keyboard.press('Control+X');
-    await page.waitForTimeout(500);
-    await page.keyboard.press('n'); // Don't save changes
-    await page.waitForTimeout(1000);
-    
-    console.log('\n✓✓✓ TEST PASSED: Nano editor content is EXACTLY preserved when switching between worktrees ✓✓✓');
+    console.log('\n✓✓✓ TEST PASSED: Terminal content is EXACTLY preserved when switching between worktrees ✓✓✓');
     console.log('Summary:');
-    console.log('  - Nano editor content is byte-for-byte identical after switching');
-    console.log('  - Terminal content within cols/rows was perfectly preserved');
-    console.log('  - Terminal states are isolated between worktrees');
-    console.log('  - No cross-contamination of terminal content');
+    console.log('  - Terminal output is byte-for-byte identical after switching');
+    console.log('  - Partial commands (not executed) are preserved');
+    console.log('  - Special characters and formatting are maintained');
+    console.log('  - Terminal states are completely isolated between worktrees');
   });
 });
