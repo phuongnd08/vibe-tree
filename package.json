@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:desktop": "pnpm --filter @vibetree/desktop dev",
-    "dev:desktop:reset": "echo 'Fixing Electron framework issue...' && rm -rf node_modules/.pnpm/electron@* && pnpm store prune && pnpm install --force && (cd node_modules/.pnpm/electron@30.5.1/node_modules/electron && node install.js) && pnpm dev:desktop",
+    "dev:desktop:reset": "pnpm fix:electron && pnpm dev:desktop",
     "dev:server": "pnpm --filter @vibetree/server dev",
     "dev:web": "pnpm --filter @vibetree/web dev",
     "dev:all": "pnpm build:deps && concurrently \"pnpm dev:server\" \"pnpm dev:web\"",
@@ -19,7 +19,7 @@
     "lint": "turbo run lint",
     "clean": "turbo run clean",
     "package:desktop": "pnpm --filter @vibetree/desktop package",
-    "fix:electron": "cd node_modules/.pnpm/electron@30.5.1/node_modules/electron && node install.js && cd -"
+    "fix:electron": "cd node_modules/.pnpm/electron@*/node_modules/electron && node install.js && cd -"
   },
   "keywords": [
     "electron",

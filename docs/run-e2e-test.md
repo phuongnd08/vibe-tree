@@ -79,6 +79,28 @@ For debugging and interactive test development:
 pnpm --filter @vibetree/desktop test:e2e:ui
 ```
 
+## Running a Single Test
+
+When debugging, you can run a single test file to focus on specific issues:
+
+```bash
+# Run a specific test file
+pnpm --filter @vibetree/desktop test:e2e path/to/test.spec.ts
+
+# Example: Run only the terminal splitting tests
+pnpm --filter @vibetree/desktop test:e2e e2e/terminal-split.spec.ts
+```
+
+You can also run a specific test within a file by using Playwright's test filtering:
+
+```bash
+# Run tests matching a specific name pattern
+pnpm --filter @vibetree/desktop test:e2e --grep "test name pattern"
+
+# Example: Run only tests containing "vertical split"
+pnpm --filter @vibetree/desktop test:e2e --grep "vertical split"
+```
+
 ## Troubleshooting
 
 ### Issue: "Process failed to launch!" errors
