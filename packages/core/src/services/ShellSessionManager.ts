@@ -55,7 +55,11 @@ export class ShellSessionManager {
    * Generate deterministic session ID from worktree path
    * This ensures same session is reused for same worktree
    */
-  private generateSessionId(worktreePath: string): string {
+  private generateSessionId(worktreePath: string, forceNew: boolean = false): string {
+    if (forceNew) {
+      // Generate a unique ID for independent sessions
+      return crypto.randomBytes(8).toString('hex');
+    }
     return crypto.createHash('sha256')
       .update(worktreePath)
       .digest('hex')
@@ -69,19 +73,22 @@ export class ShellSessionManager {
     worktreePath: string, 
     cols = 80, 
     rows = 30,
-    spawnFunction?: (shell: string, args: string[], options: any) => IPty
+    spawnFunction?: (shell: string, args: string[], options: any) => IPty,
+    forceNew: boolean = false
   ): Promise<ShellStartResult> {
-    const sessionId = this.generateSessionId(worktreePath);
+    const sessionId = this.generateSessionId(worktreePath, forceNew);
     
-    // Return existing session if available
-    const existingSession = this.sessions.get(sessionId);
-    if (existingSession) {
-      existingSession.lastActivity = new Date();
-      return {
-        success: true,
-        processId: sessionId,
-        isNew: false
-      };
+    // Return existing session if available (unless forceNew is true)
+    if (!forceNew) {
+      const existingSession = this.sessions.get(sessionId);
+      if (existingSession) {
+        existingSession.lastActivity = new Date();
+        return {
+          success: true,
+          processId: sessionId,
+          isNew: false
+        };
+      }
     }
 
     // Create new session

@@ -568,7 +568,7 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
         const cols = term.cols;
         const rows = term.rows;
         
-        const result = await window.electronAPI.shell.start(worktreePath, cols, rows);
+        const result = await window.electronAPI.shell.start(worktreePath, cols, rows, true); // forceNew = true for split terminal
         
         if (!result.success) {
           term.writeln(`\r\nError: ${result.error || 'Failed to start shell'}\r\n`);

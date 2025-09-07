@@ -8,8 +8,8 @@ import { ShellSessionManager } from '@vibetree/core';
 export class ShellManager {
   private sessionManager = ShellSessionManager.getInstance();
 
-  async startShell(worktreePath: string, userId?: string, cols = 80, rows = 30) {
-    return this.sessionManager.startSession(worktreePath, cols, rows, pty.spawn);
+  async startShell(worktreePath: string, userId?: string, cols = 80, rows = 30, forceNew = false) {
+    return this.sessionManager.startSession(worktreePath, cols, rows, pty.spawn, forceNew);
   }
 
   async writeToShell(sessionId: string, data: string) {

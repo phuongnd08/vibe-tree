@@ -125,8 +125,8 @@ export class WebSocketAdapter extends BaseAdapter {
     };
   }
 
-  async startShell(worktreePath: string, cols?: number, rows?: number): Promise<ShellStartResult> {
-    return this.sendMessage('shell:start', { worktreePath, cols, rows });
+  async startShell(worktreePath: string, cols?: number, rows?: number, forceNew?: boolean): Promise<ShellStartResult> {
+    return this.sendMessage('shell:start', { worktreePath, cols, rows, forceNew });
   }
 
   async writeToShell(processId: string, data: string): Promise<ShellWriteResult> {

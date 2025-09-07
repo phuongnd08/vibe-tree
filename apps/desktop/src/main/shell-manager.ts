@@ -14,13 +14,14 @@ class DesktopShellManager {
   }
 
   private setupIpcHandlers() {
-    ipcMain.handle('shell:start', async (event, worktreePath: string, cols?: number, rows?: number) => {
+    ipcMain.handle('shell:start', async (event, worktreePath: string, cols?: number, rows?: number, forceNew?: boolean) => {
       // Start session with node-pty spawn function
       const result = await this.sessionManager.startSession(
         worktreePath,
         cols,
         rows,
-        pty.spawn
+        pty.spawn,
+        forceNew
       );
 
       if (result.success && result.processId) {

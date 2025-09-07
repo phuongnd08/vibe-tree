@@ -379,7 +379,7 @@ export function TerminalView({ worktreePath }: TerminalViewProps) {
       if (!adapter || !selectedWorktree) return;
 
       try {
-        const result = await adapter.startShell(selectedWorktree);
+        const result = await adapter.startShell(selectedWorktree, undefined, undefined, true); // forceNew = true for split
         if (result.success && result.processId) {
           const actualSessionId = result.processId;
           

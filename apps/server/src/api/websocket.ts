@@ -138,7 +138,8 @@ export function setupWebSocketHandlers(wss: WebSocketServer, services: Services)
               message.payload.worktreePath,
               deviceId || undefined,
               message.payload.cols,
-              message.payload.rows
+              message.payload.rows,
+              message.payload.forceNew
             );
             
             if (result.success && result.processId) {
