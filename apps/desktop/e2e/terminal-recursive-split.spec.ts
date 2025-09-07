@@ -215,7 +215,7 @@ test.describe('Terminal Recursive Split Feature Test', () => {
     expect(remainingCloseButtons).toBe(0); // No close buttons should be visible when only 1 terminal remains
   });
 
-  test.skip('should preserve sibling terminals when closing a middle terminal', async () => {
+  test('should preserve sibling terminals when closing a middle terminal', async () => {
     test.setTimeout(90000);
 
     await page.waitForLoadState('domcontentloaded');
