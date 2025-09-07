@@ -172,7 +172,7 @@ test.describe('Worktree Switch Double Character Bug', () => {
     await page.waitForTimeout(1000);
 
     // Get the terminal content
-    const terminalContent = await page.locator('.xterm-screen').textContent();
+    const terminalContent = await page.locator('.xterm-screen').innerText();
     console.log('Terminal content after typing "echo":', terminalContent);
 
     // The bug causes "eecchhoo" to appear instead of "echo"
@@ -236,18 +236,13 @@ test.describe('Worktree Switch Double Character Bug', () => {
     // Wait a bit for terminal to stabilize
     await page.waitForTimeout(1000);
     
-    const initialContent = await terminalScreen.textContent();
+    const initialContent = await terminalScreen.innerText();
     
-    // Extract just the visible terminal text, removing the CSS styles
+    // Extract just the visible terminal text - innerText should already be clean
     const extractTerminalText = (content: string) => {
-      // Look for the actual terminal prompt/text after all the CSS styles
-      const match = content.match(/dummy-repo-wt\d+-\d+ % .*/);
-      if (match) {
-        // Return everything from the prompt onwards
-        const promptIndex = content.indexOf(match[0]);
-        return content.substring(promptIndex);
-      }
-      return content;
+      // With innerText, we should already have clean content without CSS
+      // Just trim any extra whitespace and return
+      return content.trim();
     };
     
     const initialTerminalText = extractTerminalText(initialContent || '');
@@ -272,7 +267,7 @@ test.describe('Worktree Switch Double Character Bug', () => {
     await page.waitForTimeout(2000);
     
     // Get wt2 content for comparison
-    const wt2Content = await terminalScreen.textContent();
+    const wt2Content = await terminalScreen.innerText();
     const wt2TerminalText = extractTerminalText(wt2Content || '');
     console.log('===== AFTER SWITCHING TO WT2 =====');
     console.log('Terminal text for wt2:', wt2TerminalText);
@@ -286,7 +281,7 @@ test.describe('Worktree Switch Double Character Bug', () => {
     await page.waitForTimeout(2000);
 
     // Get the terminal content after switching back
-    const finalContent = await terminalScreen.textContent();
+    const finalContent = await terminalScreen.innerText();
     const finalTerminalText = extractTerminalText(finalContent || '');
     console.log('===== AFTER SWITCHING BACK TO WT1 =====');
     console.log('Final terminal text for wt1 after switching back:', finalTerminalText);
@@ -374,7 +369,7 @@ test.describe('Worktree Switch Double Character Bug', () => {
 
     // Get the terminal content to verify our input is there
     const terminalScreen = page.locator('.xterm-screen');
-    const contentAfterTyping = await terminalScreen.textContent();
+    const contentAfterTyping = await terminalScreen.innerText();
     console.log('===== AFTER TYPING IN WT1 =====');
     console.log('Content after typing:', contentAfterTyping);
     console.log('Contains "echo hello":', contentAfterTyping?.includes('echo hello'));
@@ -404,7 +399,7 @@ test.describe('Worktree Switch Double Character Bug', () => {
     await page.waitForTimeout(1000);
 
     // Get the terminal content after switching back
-    const finalContent = await terminalScreen.textContent();
+    const finalContent = await terminalScreen.innerText();
     console.log('===== AFTER SWITCHING BACK TO WT1 =====');
     console.log('Final content:', finalContent);
     console.log('Still contains "echo hello":', finalContent?.includes('echo hello'));
@@ -416,7 +411,7 @@ test.describe('Worktree Switch Double Character Bug', () => {
     await page.keyboard.press('Enter');
     await page.waitForTimeout(2000);
 
-    const contentAfterEnter = await terminalScreen.textContent();
+    const contentAfterEnter = await terminalScreen.innerText();
     console.log('===== AFTER PRESSING ENTER =====');
     console.log('Content after Enter:', contentAfterEnter);
     console.log('Command executed (should see "hello" output):', contentAfterEnter?.includes('hello'));
@@ -479,7 +474,7 @@ test.describe('Worktree Switch Double Character Bug', () => {
     // Wait for terminal to settle
     await page.waitForTimeout(2000);
     
-    const wt1InitialContent = await terminalScreen.textContent();
+    const wt1InitialContent = await terminalScreen.innerText();
     
     console.log('===== WT1 INITIAL STATE =====');
     console.log('WT1 content length:', wt1InitialContent?.length);
@@ -504,7 +499,7 @@ test.describe('Worktree Switch Double Character Bug', () => {
     await page.waitForTimeout(3000); // Give time for wt2 to fully load
 
     // Get wt2 content immediately after switching
-    const wt2Content = await terminalScreen.textContent();
+    const wt2Content = await terminalScreen.innerText();
     
     console.log('===== WT2 AFTER FIRST SWITCH =====');
     console.log('WT2 content length:', wt2Content?.length);

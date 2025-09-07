@@ -258,12 +258,17 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
         currentWorktreeRef.current = worktreePath;
         console.log(`[SHELL] Shell started: ${result.processId}, isNew: ${result.isNew}, worktree: ${worktreePath}`);
 
-        // The key insight: don't clear terminal - let the shell session handle its own state
-        // This preserves both display state and input buffer like iTerm2
-        console.log(`[SWITCH] Switching to worktree ${worktreePath} - maintaining terminal state`);
+        // Clear terminal when switching to a different worktree to prevent contamination
+        // Each worktree should have isolated terminal content
+        if (previousWorktree && previousWorktree !== worktreePath) {
+          console.log(`[SWITCH] Clearing terminal when switching from ${previousWorktree} to ${worktreePath}`);
+          terminal.clear();
+        }
+        
+        console.log(`[SWITCH] Switching to worktree ${worktreePath}`);
         
         // If this is a new session, it will start fresh naturally
-        // If it's an existing session, it already has its state
+        // If it's an existing session, we'll let the PTY handle restoring its state
         
         // Focus terminal
         terminal.focus();
