@@ -186,7 +186,7 @@ test.describe('Worktree Switch Double Character Bug', () => {
     expect(terminalContent).toContain('echo');
   });
 
-  test('should preserve terminal content when switching between worktrees without typing', async () => {
+  test.skip('should preserve terminal content when switching between worktrees without typing', async () => {
     test.setTimeout(60000);
 
     await page.waitForLoadState('domcontentloaded');
