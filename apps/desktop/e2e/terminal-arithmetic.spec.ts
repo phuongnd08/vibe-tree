@@ -17,14 +17,14 @@ test.describe('Terminal Arithmetic Test', () => {
 
     // Create the directory and initialize git repo
     fs.mkdirSync(dummyRepoPath, { recursive: true });
-    execSync('git init', { cwd: dummyRepoPath });
+    execSync('git init -q', { cwd: dummyRepoPath });
     execSync('git config user.email "test@example.com"', { cwd: dummyRepoPath });
     execSync('git config user.name "Test User"', { cwd: dummyRepoPath });
 
-    // Create a dummy file and make initial commit
+    // Create a dummy file and make initial commit (required for branches/worktrees)
     fs.writeFileSync(path.join(dummyRepoPath, 'README.md'), '# Test Repository\n');
     execSync('git add .', { cwd: dummyRepoPath });
-    execSync('git commit -m "Initial commit"', { cwd: dummyRepoPath });
+    execSync('git commit -q -m "Initial commit"', { cwd: dummyRepoPath });
 
     // Create main branch (some git versions don't create it by default)
     try {
