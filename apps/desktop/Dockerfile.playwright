@@ -1,0 +1,42 @@
+FROM mcr.microsoft.com/playwright:v1.49.1-noble
+
+# Install build dependencies for native modules
+RUN apt-get update && apt-get install -y \
+    python3-setuptools \
+    python3-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm@8.14.0
+
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/desktop/package.json apps/desktop/
+COPY packages/core/package.json packages/core/
+COPY packages/ui/package.json packages/ui/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# Build dependencies
+RUN pnpm build:deps
+
+# Build desktop app
+RUN pnpm --filter @vibetree/desktop build
+
+# Compile test main file
+RUN cd apps/desktop && npx tsc src/main/test-index.ts --outDir dist/main --target es2020 --module commonjs --esModuleInterop --allowSyntheticDefaultImports --resolveJsonModule
+
+# Set environment variables for Electron
+ENV CI=true
+ENV ELECTRON_DISABLE_SANDBOX=1
+
+# Run tests
+CMD ["pnpm", "--filter", "@vibetree/desktop", "exec", "playwright", "test", "--reporter=list"]

@@ -169,21 +169,21 @@ jobs:
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.49.1-noble
+      options: --user root
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v2
-      with:
-        version: 8.14.0
+    - name: Install build dependencies
+      run: |
+        apt-get update
+        apt-get install -y python3-setuptools python3-dev build-essential
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 22.12.0
-        cache: 'pnpm'
+    - name: Setup pnpm
+      run: npm install -g pnpm@8.14.0
 
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
@@ -199,27 +199,10 @@ jobs:
         cd apps/desktop
         npx tsc src/main/test-index.ts --outDir dist/main --target es2020 --module commonjs --esModuleInterop --allowSyntheticDefaultImports --resolveJsonModule
 
-    - name: Install Playwright browsers and dependencies
-      timeout-minutes: 5
-      run: |
-        pnpm --filter @vibetree/desktop exec playwright install
-        pnpm --filter @vibetree/desktop exec playwright install-deps
-
-    - name: Setup virtual display
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xvfb libnss3 libatk-bridge2.0-0 libdrm-dev libxcomposite-dev libxdamage1 libxfixes-dev libxrandr-dev libgbm-dev libxss1 libasound2t64
-        export DISPLAY=:99
-        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-
-    - name: Rebuild Electron native modules
-      run: pnpm --filter @vibetree/desktop exec electron-rebuild || true
-
     - name: Run e2e tests
       run: pnpm --filter @vibetree/desktop exec playwright test --reporter=list
       env:
         CI: true
-        DISPLAY: :99
         ELECTRON_DISABLE_SANDBOX: 1
 
     - name: Upload test results
