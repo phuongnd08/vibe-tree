@@ -19,6 +19,9 @@
     "package": "electron-builder",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
     "test:e2e": "pnpm build && playwright test",
     "test:e2e:ui": "pnpm build && playwright test --ui",
     "test:e2e:docker": "docker-compose run --rm playwright",
@@ -43,6 +46,7 @@
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/ui": "^3.2.4",
     "autoprefixer": "^10.4.16",
     "concurrently": "^8.2.2",
     "electron": "^38.0.0",
@@ -56,6 +60,7 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
     "vite": "^7.0.6",
+    "vitest": "^3.2.4",
     "wait-on": "^8.0.4"
   },
   "dependencies": {

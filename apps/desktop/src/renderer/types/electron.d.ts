@@ -43,6 +43,18 @@ export interface ElectronAPI {
   dialog: {
     selectDirectory: () => Promise<string | undefined>;
   };
+  recentProjects: {
+    get: () => Promise<Array<{
+      path: string;
+      name: string;
+      lastOpened: number;
+    }>>;
+    add: (projectPath: string) => Promise<void>;
+    remove: (projectPath: string) => Promise<void>;
+    clear: () => Promise<void>;
+    onOpenProject: (callback: (path: string) => void) => () => void;
+    onOpenRecentProject: (callback: (path: string) => void) => () => void;
+  };
 }
 
 declare global {

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 
 interface Worktree {
   path: string;
@@ -44,11 +44,13 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
-  const addProject = (path: string): string => {
+  const addProject = useCallback((path: string): string => {
     // Check if project already exists
     const existing = projects.find(p => p.path === path);
     if (existing) {
       setActiveProjectId(existing.id);
+      // Update recent projects when reopening existing project
+      window.electronAPI.recentProjects.add(path);
       return existing.id;
     }
 
@@ -65,8 +67,28 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
 
     setProjects(prev => [...prev, newProject]);
     setActiveProjectId(id);
+    
+    // Add to recent projects when opening new project
+    window.electronAPI.recentProjects.add(path);
+    
     return id;
-  };
+  }, [projects]);
+
+  useEffect(() => {
+    // Listen for menu-triggered project opening
+    const unsubscribeOpen = window.electronAPI.recentProjects.onOpenProject((path: string) => {
+      addProject(path);
+    });
+
+    const unsubscribeOpenRecent = window.electronAPI.recentProjects.onOpenRecentProject((path: string) => {
+      addProject(path);
+    });
+
+    return () => {
+      unsubscribeOpen();
+      unsubscribeOpenRecent();
+    };
+  }, [addProject]);
 
   const removeProject = (id: string) => {
     setProjects(prev => prev.filter(p => p.id !== id));

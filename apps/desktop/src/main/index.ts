@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme, dialog, shell, Menu } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { shellProcessManager } from './shell-manager';
 import './ide-detector';
+import { recentProjectsManager } from './recent-projects';
 import {
   listWorktrees,
   getGitStatus,
@@ -13,6 +14,127 @@ import {
 } from '@vibetree/core';
 
 let mainWindow: BrowserWindow | null = null;
+
+function createMenu() {
+  const recentProjects = recentProjectsManager.getRecentProjects();
+  
+  const recentProjectsMenu = recentProjects.map(project => ({
+    label: `${project.name} (${project.path})`,
+    click: () => {
+      if (mainWindow) {
+        mainWindow.webContents.send('project:open-recent', project.path);
+      }
+    }
+  }));
+
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Open Project Folder...',
+          accelerator: 'CmdOrCtrl+O',
+          click: async () => {
+            const result = await dialog.showOpenDialog({
+              properties: ['openDirectory']
+            });
+            if (result.filePaths[0] && mainWindow) {
+              mainWindow.webContents.send('project:open', result.filePaths[0]);
+            }
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Recent Projects',
+          submenu: recentProjectsMenu.length > 0 ? [
+            ...recentProjectsMenu,
+            { type: 'separator' },
+            {
+              label: 'Clear Recent Projects',
+              click: () => {
+                recentProjectsManager.clearRecentProjects();
+                createMenu(); // Refresh menu
+              }
+            }
+          ] : [
+            {
+              label: 'No Recent Projects',
+              enabled: false
+            }
+          ]
+        },
+        { type: 'separator' },
+        {
+          label: 'Quit',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
+          click: () => {
+            app.quit();
+          }
+        }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'close' }
+      ]
+    }
+  ];
+
+  // macOS specific menu adjustments
+  if (process.platform === 'darwin') {
+    template.unshift({
+      label: app.getName(),
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'services', submenu: [] },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    });
+
+    // Window menu
+    (template[4].submenu as Electron.MenuItemConstructorOptions[]).push(
+      { type: 'separator' },
+      { role: 'front' }
+    );
+  }
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -52,7 +174,10 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  createMenu();
+});
 
 // Clean up shell processes on quit
 app.on('before-quit', () => {
@@ -119,6 +244,26 @@ ipcMain.handle('dialog:select-directory', async () => {
 // Open external links
 ipcMain.handle('shell:open-external', async (_, url: string) => {
   await shell.openExternal(url);
+});
+
+// Recent Projects handling
+ipcMain.handle('recent-projects:get', () => {
+  return recentProjectsManager.getRecentProjects();
+});
+
+ipcMain.handle('recent-projects:add', (_, projectPath: string) => {
+  recentProjectsManager.addRecentProject(projectPath);
+  createMenu(); // Refresh menu to show updated recent projects
+});
+
+ipcMain.handle('recent-projects:remove', (_, projectPath: string) => {
+  recentProjectsManager.removeRecentProject(projectPath);
+  createMenu(); // Refresh menu
+});
+
+ipcMain.handle('recent-projects:clear', () => {
+  recentProjectsManager.clearRecentProjects();
+  createMenu(); // Refresh menu
 });
 
 // Parsing functions are now imported from @vibetree/core

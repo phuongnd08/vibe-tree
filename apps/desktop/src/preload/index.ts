@@ -54,6 +54,22 @@ const api = {
   },
   dialog: {
     selectDirectory: () => ipcRenderer.invoke('dialog:select-directory')
+  },
+  recentProjects: {
+    get: () => ipcRenderer.invoke('recent-projects:get'),
+    add: (projectPath: string) => ipcRenderer.invoke('recent-projects:add', projectPath),
+    remove: (projectPath: string) => ipcRenderer.invoke('recent-projects:remove', projectPath),
+    clear: () => ipcRenderer.invoke('recent-projects:clear'),
+    onOpenProject: (callback: (path: string) => void) => {
+      const listener = (_: unknown, path: string) => callback(path);
+      ipcRenderer.on('project:open', listener);
+      return () => ipcRenderer.removeListener('project:open', listener);
+    },
+    onOpenRecentProject: (callback: (path: string) => void) => {
+      const listener = (_: unknown, path: string) => callback(path);
+      ipcRenderer.on('project:open-recent', listener);
+      return () => ipcRenderer.removeListener('project:open-recent', listener);
+    },
   }
 };
 
