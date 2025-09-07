@@ -17,6 +17,8 @@
     "build:web": "pnpm build:deps && pnpm --filter @vibetree/web build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:run": "turbo run test:run",
     "clean": "turbo run clean",
     "package:desktop": "pnpm --filter @vibetree/desktop package",
     "fix:electron": "./fix-electron.sh"
