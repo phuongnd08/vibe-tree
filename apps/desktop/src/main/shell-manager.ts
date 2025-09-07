@@ -26,15 +26,33 @@ class DesktopShellManager {
       if (result.success && result.processId) {
         const listenerId = `electron-${event.sender.id}`;
         
-        // Add output listener
-        this.sessionManager.addOutputListener(result.processId, listenerId, (data) => {
-          event.sender.send(`shell:output:${result.processId}`, data);
-        });
+        // Only add listeners for new sessions or if they don't exist
+        // For existing sessions, listeners should already be set up
+        if (result.isNew) {
+          // Add output listener
+          this.sessionManager.addOutputListener(result.processId, listenerId, (data) => {
+            event.sender.send(`shell:output:${result.processId}`, data);
+          });
 
-        // Add exit listener
-        this.sessionManager.addExitListener(result.processId, listenerId, (exitCode) => {
-          event.sender.send(`shell:exit:${result.processId}`, exitCode);
-        });
+          // Add exit listener
+          this.sessionManager.addExitListener(result.processId, listenerId, (exitCode) => {
+            event.sender.send(`shell:exit:${result.processId}`, exitCode);
+          });
+        } else {
+          // For existing sessions, we need to update the listener to use the current event.sender
+          // because the renderer might have changed
+          this.sessionManager.removeOutputListener(result.processId, listenerId);
+          this.sessionManager.removeExitListener(result.processId, listenerId);
+          
+          // Re-add with current sender
+          this.sessionManager.addOutputListener(result.processId, listenerId, (data) => {
+            event.sender.send(`shell:output:${result.processId}`, data);
+          });
+
+          this.sessionManager.addExitListener(result.processId, listenerId, (exitCode) => {
+            event.sender.send(`shell:exit:${result.processId}`, exitCode);
+          });
+        }
       }
 
       return result;

@@ -23,6 +23,7 @@ interface ShellSession {
   lastActivity: Date;
   listeners: Map<string, (data: string) => void>;
   exitListeners: Map<string, (code: number) => void>;
+  dataDisposable?: { dispose: () => void }; // Store the PTY data listener disposable
 }
 
 /**
@@ -185,7 +186,12 @@ export class ShellSessionManager {
     
     // Subscribe to PTY data if this is the first listener
     if (session.listeners.size === 1) {
-      onPtyData(session.pty, (data) => {
+      // Dispose of any existing data listener first (shouldn't happen but be safe)
+      if (session.dataDisposable) {
+        session.dataDisposable.dispose();
+      }
+      
+      session.dataDisposable = onPtyData(session.pty, (data) => {
         session.listeners.forEach(listener => listener(data));
       });
     }
@@ -201,7 +207,15 @@ export class ShellSessionManager {
     const session = this.sessions.get(sessionId);
     if (!session) return false;
 
-    return session.listeners.delete(listenerId);
+    const removed = session.listeners.delete(listenerId);
+    
+    // If this was the last listener, dispose of the PTY data listener
+    if (removed && session.listeners.size === 0 && session.dataDisposable) {
+      session.dataDisposable.dispose();
+      session.dataDisposable = undefined;
+    }
+    
+    return removed;
   }
 
   /**
@@ -258,6 +272,11 @@ export class ShellSessionManager {
     if (!session) return false;
 
     try {
+      // Dispose of data listener if it exists
+      if (session.dataDisposable) {
+        session.dataDisposable.dispose();
+      }
+      
       // Clear listeners
       session.listeners.clear();
       session.exitListeners.clear();
