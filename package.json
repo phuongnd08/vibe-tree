@@ -19,7 +19,7 @@
     "lint": "turbo run lint",
     "clean": "turbo run clean",
     "package:desktop": "pnpm --filter @vibetree/desktop package",
-    "fix:electron": "cd node_modules/.pnpm/electron@*/node_modules/electron && node install.js && cd -"
+    "fix:electron": "./fix-electron.sh"
   },
   "keywords": [
     "electron",
