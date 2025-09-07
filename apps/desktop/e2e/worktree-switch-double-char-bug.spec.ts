@@ -185,4 +185,109 @@ test.describe('Worktree Switch Double Character Bug', () => {
     // Check that the terminal contains the correct single "echo"
     expect(terminalContent).toContain('echo');
   });
+
+  test('should preserve terminal content when switching between worktrees without typing', async () => {
+    test.setTimeout(60000);
+
+    await page.waitForLoadState('domcontentloaded');
+
+    // Verify the app launches with project selector
+    await expect(page.locator('h2', { hasText: 'Select a Project' })).toBeVisible({ timeout: 10000 });
+
+    // Click the "Open Project Folder" button
+    const openButton = page.locator('button', { hasText: 'Open Project Folder' });
+    await expect(openButton).toBeVisible();
+
+    // Mock the Electron dialog to return our dummy repository path
+    await electronApp.evaluate(async ({ dialog }, repoPath) => {
+      dialog.showOpenDialog = async () => {
+        return {
+          canceled: false,
+          filePaths: [repoPath]
+        };
+      };
+    }, dummyRepoPath);
+
+    // Click the open button which will trigger the mocked dialog
+    await openButton.click();
+
+    // Wait for worktree list to appear
+    await page.waitForTimeout(3000);
+
+    // Use the reliable data-worktree-branch selector
+    const wt1Button = page.locator('button[data-worktree-branch="wt1"]');
+    const wt1Count = await wt1Button.count();
+    
+    if (wt1Count === 0) {
+      throw new Error('Could not find wt1 worktree button');
+    }
+    
+    console.log('Found wt1 worktree button');
+
+    // First click on wt1
+    console.log('Clicking on wt1...');
+    await wt1Button.click();
+    await page.waitForTimeout(2000);
+
+    // Get the initial terminal content
+    const terminalScreen = page.locator('.xterm-screen');
+    await expect(terminalScreen).toBeVisible({ timeout: 5000 });
+    
+    const initialContent = await terminalScreen.textContent();
+    
+    // Extract just the visible terminal text, removing the CSS styles
+    const extractTerminalText = (content: string) => {
+      // Look for the actual terminal prompt/text after all the CSS styles
+      const match = content.match(/dummy-repo-wt\d+-\d+ % .*/);
+      if (match) {
+        // Return everything from the prompt onwards
+        const promptIndex = content.indexOf(match[0]);
+        return content.substring(promptIndex);
+      }
+      return content;
+    };
+    
+    const initialTerminalText = extractTerminalText(initialContent || '');
+    console.log('Initial terminal text for wt1:', initialTerminalText);
+    console.log('Initial content length:', initialContent?.length);
+
+    // Find and click on wt2 using the data attribute
+    const wt2Button = page.locator('button[data-worktree-branch="wt2"]');
+    const wt2Count = await wt2Button.count();
+    
+    if (wt2Count === 0) {
+      throw new Error('Could not find wt2 worktree button');
+    }
+    
+    console.log('Found wt2 worktree button');
+
+    console.log('Clicking on wt2...');
+    await wt2Button.click();
+    await page.waitForTimeout(2000);
+    
+    // Get wt2 content for comparison
+    const wt2Content = await terminalScreen.textContent();
+    const wt2TerminalText = extractTerminalText(wt2Content || '');
+    console.log('Terminal text for wt2:', wt2TerminalText);
+
+    // Click back on wt1
+    console.log('Clicking back on wt1...');
+    await wt1Button.click();
+    await page.waitForTimeout(2000);
+
+    // Get the terminal content after switching back
+    const finalContent = await terminalScreen.textContent();
+    const finalTerminalText = extractTerminalText(finalContent || '');
+    console.log('Final terminal text for wt1 after switching back:', finalTerminalText);
+    console.log('Final content length:', finalContent?.length);
+    
+    // Compare the extracted terminal text
+    console.log('Initial vs Final comparison:');
+    console.log('  Initial:', initialTerminalText);
+    console.log('  Final:  ', finalTerminalText);
+    console.log('  Are they equal?', initialTerminalText === finalTerminalText);
+
+    // Verify that the terminal content remains the same
+    expect(finalTerminalText).toBe(initialTerminalText);
+  });
 });

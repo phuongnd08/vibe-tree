@@ -17,12 +17,15 @@ interface ClaudeTerminalProps {
 }
 
 // Cache for terminal states per worktree
+// Cache terminal state per worktree path instead of per process ID
+// This ensures proper isolation between worktrees
 const terminalStateCache = new Map<string, string>();
 
 export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const processIdRef = useRef<string>('');
+  const currentWorktreeRef = useRef<string>('');
   const fitAddonRef = useRef<FitAddon | null>(null);
   const serializeAddonRef = useRef<SerializeAddon | null>(null);
   const removeListenersRef = useRef<Array<() => void>>([]);
@@ -199,11 +202,13 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
   // Save terminal state before unmounting or changing worktree
   useEffect(() => {
+    const previousWorktree = currentWorktreeRef.current;
     return () => {
-      if (terminal && serializeAddonRef.current && processIdRef.current) {
-        // Save the current terminal state
+      if (terminal && serializeAddonRef.current && previousWorktree) {
+        // Save the terminal state for the PREVIOUS worktree, not the new one
         const serializedState = serializeAddonRef.current.serialize();
-        terminalStateCache.set(processIdRef.current, serializedState);
+        console.log(`Saving terminal state for worktree: ${previousWorktree}`);
+        terminalStateCache.set(previousWorktree, serializedState);
       }
     };
   }, [terminal, worktreePath]);
@@ -230,22 +235,20 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
         }
 
         processIdRef.current = result.processId!;
+        currentWorktreeRef.current = worktreePath;
         console.log(`Shell started: ${result.processId}, isNew: ${result.isNew}, worktree: ${worktreePath}`);
 
-        // Handle terminal state
-        if (result.isNew) {
-          // Clear terminal for new shells
-          terminal.clear();
-        } else {
-          // Restore cached state for existing shells
-          const cachedState = terminalStateCache.get(result.processId!);
-          terminal.clear();
-          
+        // Always clear terminal when switching worktrees to prevent content mixing
+        terminal.clear();
+        
+        // Handle terminal state - use worktree path as cache key for better isolation
+        const cachedState = terminalStateCache.get(worktreePath);
+        
+        if (cachedState && !result.isNew) {
+          // Restore cached state for this specific worktree
           // Use setTimeout to ensure terminal is ready
           setTimeout(() => {
-            if (cachedState) {
-              terminal.write(cachedState);
-            }
+            terminal.write(cachedState);
           }, 50);
         }
         
@@ -294,7 +297,29 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
         // Set up output listener with special handling for Claude
         let lastWasClear = false;
+        // For existing sessions, we need to be careful about initial output
+        // Set a flag to skip output until the cached state is restored
+        let isRestoringCache = !result.isNew;
+        
+        // If we're restoring cache, delay enabling output processing
+        if (isRestoringCache) {
+          setTimeout(() => {
+            isRestoringCache = false;
+          }, 100); // Give cache restoration time to complete
+        }
+        
         const removeOutputListener = window.electronAPI.shell.onOutput(result.processId!, (data) => {
+          // CRITICAL: Only process output if this is still the current worktree
+          // This prevents contamination when switching between worktrees
+          if (currentWorktreeRef.current !== worktreePath) {
+            return;
+          }
+          
+          // Skip output while restoring cached state
+          if (isRestoringCache) {
+            return;
+          }
+          
           // Check if Claude is trying to clear the screen
           if (data.includes('\x1b[2J') && data.includes('\x1b[H')) {
             // Claude is clearing screen and moving cursor home
@@ -326,9 +351,9 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
         // Periodically save terminal state
         const saveInterval = setInterval(() => {
-          if (serializeAddonRef.current && processIdRef.current) {
+          if (serializeAddonRef.current && currentWorktreeRef.current) {
             const serializedState = serializeAddonRef.current.serialize();
-            terminalStateCache.set(processIdRef.current, serializedState);
+            terminalStateCache.set(currentWorktreeRef.current, serializedState);
           }
         }, 5000); // Save every 5 seconds
 
