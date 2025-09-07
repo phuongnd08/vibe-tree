@@ -185,7 +185,6 @@ test.describe('Worktree Nano Editor Content Preservation', () => {
     // Get terminal dimensions for verification
     const terminalDimensions = await wt1Terminal.evaluate(el => {
       const rect = el.getBoundingClientRect();
-      const styles = window.getComputedStyle(el);
       return {
         width: rect.width,
         height: rect.height,
@@ -285,7 +284,6 @@ test.describe('Worktree Nano Editor Content Preservation', () => {
     // Verify terminal dimensions are preserved
     const terminalDimensionsAfter = await wt1TerminalAfter.evaluate(el => {
       const rect = el.getBoundingClientRect();
-      const styles = window.getComputedStyle(el);
       return {
         width: rect.width,
         height: rect.height,
