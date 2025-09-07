@@ -42,8 +42,7 @@ function createWindow() {
       console.warn('Could not read dev port file, using default port 3000');
     }
     mainWindow.loadURL(`http://localhost:${port}`);
-    // Open DevTools in development
-    mainWindow.webContents.openDevTools();
+    // DevTools can be opened manually via Toggle Developer Tools
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
