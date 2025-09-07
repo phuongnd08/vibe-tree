@@ -58,3 +58,7 @@ packages/web/*.local
 # Server
 packages/server/dist/
 packages/server/.env
+
+**/playwright-report/**
+**/test-results/**
+
