@@ -258,38 +258,12 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
         currentWorktreeRef.current = worktreePath;
         console.log(`[SHELL] Shell started: ${result.processId}, isNew: ${result.isNew}, worktree: ${worktreePath}`);
 
-        // Always clear terminal when switching worktrees to prevent content mixing
-        console.log(`[CLEAR] Clearing terminal for worktree switch to: ${worktreePath}`);
-        terminal.clear();
+        // The key insight: don't clear terminal - let the shell session handle its own state
+        // This preserves both display state and input buffer like iTerm2
+        console.log(`[SWITCH] Switching to worktree ${worktreePath} - maintaining terminal state`);
         
-        // Handle terminal state - use worktree path as cache key for better isolation
-        const cachedState = terminalStateCache.get(worktreePath);
-        console.log(`[RESTORE] Looking for cached state for worktree: ${worktreePath}`);
-        console.log(`[RESTORE] Cached state found: ${cachedState ? 'Yes' : 'No'}, isNew: ${result.isNew}`);
-        
-        if (cachedState && !result.isNew) {
-          console.log(`[RESTORE] Restoring cached state, length: ${cachedState.length}`);
-          console.log(`[RESTORE] State preview: ${cachedState.substring(0, 200)}...`);
-          // Restore cached state for this specific worktree
-          // Use setTimeout to ensure terminal is ready
-          setTimeout(() => {
-            terminal.write(cachedState);
-            console.log(`[RESTORE] Cached state written to terminal`);
-            
-            // Apply any buffered output that occurred while this worktree was in background
-            const bufferedOutput = outputBufferCache.get(worktreePath);
-            if (bufferedOutput && bufferedOutput.length > 0) {
-              console.log(`[RESTORE] Applying ${bufferedOutput.length} buffered outputs`);
-              bufferedOutput.forEach(data => {
-                terminal.write(data);
-              });
-              // Clear the buffer
-              outputBufferCache.delete(worktreePath);
-            }
-          }, 100);
-        } else {
-          console.log(`[RESTORE] No restoration - new session or no cache`);
-        }
+        // If this is a new session, it will start fresh naturally
+        // If it's an existing session, it already has its state
         
         // Focus terminal
         terminal.focus();

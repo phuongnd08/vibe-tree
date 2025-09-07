@@ -428,4 +428,93 @@ test.describe('Worktree Switch Double Character Bug', () => {
     expect(finalContent?.includes('echo hello')).toBe(true);
     expect(contentAfterEnter?.includes('hello')).toBe(true);
   });
+
+  test('should not contaminate terminal when switching to wt2 for first time', async () => {
+    test.setTimeout(60000);
+
+    await page.waitForLoadState('domcontentloaded');
+
+    // Verify the app launches with project selector
+    await expect(page.locator('h2', { hasText: 'Select a Project' })).toBeVisible({ timeout: 10000 });
+
+    // Click the "Open Project Folder" button
+    const openButton = page.locator('button', { hasText: 'Open Project Folder' });
+    await expect(openButton).toBeVisible();
+
+    // Mock the Electron dialog to return our dummy repository path
+    await electronApp.evaluate(async ({ dialog }, repoPath) => {
+      dialog.showOpenDialog = async () => {
+        return {
+          canceled: false,
+          filePaths: [repoPath]
+        };
+      };
+    }, dummyRepoPath);
+
+    // Click the open button which will trigger the mocked dialog
+    await openButton.click();
+
+    // Wait for worktree list to appear
+    await page.waitForTimeout(3000);
+
+    // Use the reliable data-worktree-branch selector
+    const wt1Button = page.locator('button[data-worktree-branch="wt1"]');
+    const wt1Count = await wt1Button.count();
+    
+    if (wt1Count === 0) {
+      throw new Error('Could not find wt1 worktree button');
+    }
+    
+    console.log('Found wt1 worktree button');
+
+    // First click on wt1
+    console.log('Clicking on wt1...');
+    await wt1Button.click();
+    await page.waitForTimeout(3000); // Give more time for wt1 to fully load
+
+    // Get the initial terminal content
+    const terminalScreen = page.locator('.xterm-screen');
+    await expect(terminalScreen).toBeVisible({ timeout: 5000 });
+    
+    // Wait for terminal to settle
+    await page.waitForTimeout(2000);
+    
+    const wt1InitialContent = await terminalScreen.textContent();
+    
+    console.log('===== WT1 INITIAL STATE =====');
+    console.log('WT1 content length:', wt1InitialContent?.length);
+    console.log('WT1 has wt1 reference:', wt1InitialContent?.includes('wt1'));
+    console.log('WT1 has wt2 reference:', wt1InitialContent?.includes('wt2'));
+    console.log('WT1 content preview:', wt1InitialContent?.substring(0, 200));
+    console.log('=============================');
+
+    // Find wt2 button
+    const wt2Button = page.locator('button[data-worktree-branch="wt2"]');
+    const wt2Count = await wt2Button.count();
+    
+    if (wt2Count === 0) {
+      throw new Error('Could not find wt2 worktree button');
+    }
+    
+    console.log('Found wt2 worktree button');
+
+    // Now click on wt2 (first time, should be a new session)
+    console.log('Clicking on wt2 for the FIRST time...');
+    await wt2Button.click();
+    await page.waitForTimeout(3000); // Give time for wt2 to fully load
+
+    // Get wt2 content immediately after switching
+    const wt2Content = await terminalScreen.textContent();
+    
+    console.log('===== WT2 AFTER FIRST SWITCH =====');
+    console.log('WT2 content length:', wt2Content?.length);
+    console.log('WT2 has wt1 reference:', wt2Content?.includes('wt1'));
+    console.log('WT2 has wt2 reference:', wt2Content?.includes('wt2'));
+    console.log('WT2 content preview:', wt2Content?.substring(0, 200));
+    console.log('=================================');
+
+    // The critical test: wt2 should NOT contain wt1's content
+    // This is the moment contamination happens
+    expect(wt2Content?.includes('wt1')).toBe(false);
+  });
 });
