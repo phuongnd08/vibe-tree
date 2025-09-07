@@ -136,8 +136,8 @@ importers:
         specifier: ^8.2.2
         version: 8.2.2
       electron:
-        specifier: ^30.5.1
-        version: 30.5.1
+        specifier: ^38.0.0
+        version: 38.0.0
       electron-builder:
         specifier: ^24.9.1
         version: 24.13.3(electron-builder-squirrel-windows@24.13.3)
@@ -3243,6 +3243,12 @@ packages:
       undici-types: 6.21.0
     dev: true
 
+  /@types/node@22.18.1:
+    resolution: {integrity: sha512-rzSDyhn4cYznVG+PCzGe1lwuMYJrcBS1fc3JqSa2PvtABwWo+dZ1ij5OVok3tqfpEBCBoaR4d7upFJk73HRJDw==}
+    dependencies:
+      undici-types: 6.21.0
+    dev: true
+
   /@types/plist@3.0.5:
     resolution: {integrity: sha512-E6OCaRmAe4WDmWNsL/9RMqdkkzDCY1etutkflWk4c+AcjDU07Pcz1fQwTX0TQz+Pxqn9i4L1TU3UFpjnrcDgxA==}
     requiresBuild: true
@@ -4979,14 +4985,14 @@ packages:
     resolution: {integrity: sha512-ozZyibehoe7tOhNaf16lKmljVf+3npZcJIEbJRVftVsmAg5TeA1mGS9dVCZzOwr2xT7xK15V0p7+GZqSPgkuPg==}
     dev: true
 
-  /electron@30.5.1:
-    resolution: {integrity: sha512-AhL7+mZ8Lg14iaNfoYTkXQ2qee8mmsQyllKdqxlpv/zrKgfxz6jNVtcRRbQtLxtF8yzcImWdfTQROpYiPumdbw==}
+  /electron@38.0.0:
+    resolution: {integrity: sha512-egljptiPJqbL/oamFCEY+g3RNeONWTVxZSGeyLqzK8xq106JhzuxnhJZ3sxt4DzJFaofbGyGJA37Oe9d+gVzYw==}
     engines: {node: '>= 12.20.55'}
     hasBin: true
     requiresBuild: true
     dependencies:
       '@electron/get': 2.0.3
-      '@types/node': 20.19.11
+      '@types/node': 22.18.1
       extract-zip: 2.0.1
     transitivePeerDependencies:
       - supports-color

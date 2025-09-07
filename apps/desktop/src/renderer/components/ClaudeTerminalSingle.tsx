@@ -20,8 +20,13 @@ interface ClaudeTerminalSingleProps {
   canClose: boolean;
 }
 
-// Cache for terminal states per worktree
+// Cache for terminal states per worktree and terminal ID
 const terminalStateCache = new Map<string, string>();
+
+// Helper to create cache key from worktree path and terminal ID
+function getCacheKey(worktreePath: string, terminalId: string): string {
+  return `${worktreePath}::${terminalId}`;
+}
 
 export function ClaudeTerminalSingle({ 
   worktreePath, 
@@ -191,10 +196,10 @@ export function ClaudeTerminalSingle({
     return () => {
       if (terminal && serializeAddonRef.current && processIdRef.current) {
         const serializedState = serializeAddonRef.current.serialize();
-        terminalStateCache.set(processIdRef.current, serializedState);
+        terminalStateCache.set(getCacheKey(worktreePath, terminalId), serializedState);
       }
     };
-  }, [terminal, worktreePath]);
+  }, [terminal, worktreePath, terminalId]);
 
   // Auto-start shell when worktree changes
   useEffect(() => {
@@ -221,7 +226,7 @@ export function ClaudeTerminalSingle({
         if (result.isNew) {
           terminal.clear();
         } else {
-          const cachedState = terminalStateCache.get(result.processId!);
+          const cachedState = terminalStateCache.get(getCacheKey(worktreePath, terminalId));
           terminal.clear();
           
           setTimeout(() => {
@@ -300,7 +305,7 @@ export function ClaudeTerminalSingle({
         const saveInterval = setInterval(() => {
           if (serializeAddonRef.current && processIdRef.current) {
             const serializedState = serializeAddonRef.current.serialize();
-            terminalStateCache.set(processIdRef.current, serializedState);
+            terminalStateCache.set(getCacheKey(worktreePath, terminalId), serializedState);
           }
         }, 5000);
 
@@ -322,7 +327,7 @@ export function ClaudeTerminalSingle({
     return () => {
       if (serializeAddonRef.current && processIdRef.current) {
         const serializedState = serializeAddonRef.current.serialize();
-        terminalStateCache.set(processIdRef.current, serializedState);
+        terminalStateCache.set(getCacheKey(worktreePath, terminalId), serializedState);
       }
       
       removeListenersRef.current.forEach(remove => remove());
