@@ -36,12 +36,7 @@ RUN pnpm --filter @vibetree/desktop build
 RUN cd apps/desktop && npx tsc src/main/test-index.ts --outDir dist/main --target es2020 --module commonjs --esModuleInterop --allowSyntheticDefaultImports --resolveJsonModule
 
 # Fix Electron installation
-RUN ELECTRON_DIR=$(find node_modules/.pnpm -maxdepth 2 -name "electron@*" -type d | head -1) && \
-    if [ -n "$ELECTRON_DIR" ]; then \
-        cd "$ELECTRON_DIR/node_modules/electron" && \
-        rm -rf dist && \
-        npm run postinstall; \
-    fi
+RUN cd apps/desktop/node_modules/electron && node install.js
 
 # Set environment variables for Electron
 ENV CI=true
