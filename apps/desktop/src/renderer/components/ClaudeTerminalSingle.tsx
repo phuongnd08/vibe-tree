@@ -92,8 +92,8 @@ export function ClaudeTerminalSingle({
       removeListenersRef.current.forEach(remove => remove());
       removeListenersRef.current = [];
       
-      // Don't destroy terminal here, just hide it
-      terminalManager.hideTerminal(worktreePath, terminalId);
+      // Don't hide the terminal on unmount - it might still be visible in another component
+      // The terminal will only be destroyed when explicitly closed
     };
   }, [worktreePath, terminalId, theme]);
 

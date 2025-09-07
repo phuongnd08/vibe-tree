@@ -183,8 +183,19 @@ class TerminalManager {
       return; // Already attached to the same container
     }
 
-    // Detach from previous container if needed
+    // If terminal is attached to a different container, check if we should move it
     if (instance.isAttached && instance.container && instance.container !== container) {
+      // Check if the existing container is still in DOM and visible
+      const existingContainerVisible = document.body.contains(instance.container) && 
+                                       instance.container.offsetParent !== null;
+      
+      if (existingContainerVisible) {
+        // Don't move terminal from a visible container
+        console.log(`Terminal ${instance.terminalId} is already visible in another container, skipping attachment`);
+        return;
+      }
+      
+      // Detach from the old non-visible container
       this.detachTerminal(instance);
     }
 
