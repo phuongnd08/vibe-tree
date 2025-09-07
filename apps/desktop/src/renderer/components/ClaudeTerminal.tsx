@@ -18,6 +18,8 @@ interface ClaudeTerminalProps {
 
 // Cache for terminal states per worktree
 const terminalStateCache = new Map<string, string>();
+// Cache for split state per worktree
+const worktreeSplitStateCache = new Map<string, boolean>();
 
 export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -33,7 +35,10 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
   const removeListenersRef = useRef<Array<() => void>>([]);
   const removeSplitListenersRef = useRef<Array<() => void>>([]);
   const [detectedIDEs, setDetectedIDEs] = useState<Array<{ name: string; command: string }>>([]);
-  const [isSplit, setIsSplit] = useState(false);
+  const [isSplit, setIsSplit] = useState(() => {
+    // Initialize split state from cache for this worktree
+    return worktreeSplitStateCache.get(worktreePath) || false;
+  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -214,6 +219,12 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
       }
     };
   }, [terminal, worktreePath]);
+
+  // Update split state when worktree changes
+  useEffect(() => {
+    const savedSplitState = worktreeSplitStateCache.get(worktreePath) || false;
+    setIsSplit(savedSplitState);
+  }, [worktreePath]);
 
   // Auto-start shell when worktree changes
   useEffect(() => {
@@ -432,9 +443,13 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
         splitProcessIdRef.current = '';
       }
       setIsSplit(false);
+      // Update cache
+      worktreeSplitStateCache.set(worktreePath, false);
     } else {
       // Open split terminal
       setIsSplit(true);
+      // Update cache
+      worktreeSplitStateCache.set(worktreePath, true);
       // The split terminal will be initialized by useEffect
     }
   };
@@ -451,6 +466,8 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
       splitProcessIdRef.current = '';
     }
     setIsSplit(false);
+    // Update cache
+    worktreeSplitStateCache.set(worktreePath, false);
   };
 
   // Initialize split terminal when isSplit becomes true

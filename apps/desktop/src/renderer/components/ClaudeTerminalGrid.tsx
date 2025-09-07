@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ClaudeTerminalSingle } from './ClaudeTerminalSingle';
 
 interface GridNode {
@@ -14,12 +14,52 @@ interface ClaudeTerminalGridProps {
   theme?: 'light' | 'dark';
 }
 
+// Cache for terminal grid state per worktree
+const worktreeGridStateCache = new Map<string, GridNode>();
+
 export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: ClaudeTerminalGridProps) {
-  const [rootNode, setRootNode] = useState<GridNode>({
-    id: 'terminal-1',
-    type: 'terminal'
+  const [rootNode, setRootNode] = useState<GridNode>(() => {
+    // Initialize from cache for this worktree
+    const cached = worktreeGridStateCache.get(worktreePath);
+    if (cached) {
+      return cached;
+    }
+    return {
+      id: 'terminal-1',
+      type: 'terminal'
+    };
   });
   const [nextTerminalId, setNextTerminalId] = useState(2);
+  const [previousWorktree, setPreviousWorktree] = useState(worktreePath);
+
+  // Save grid state to cache for the previous worktree and load state for new worktree
+  useEffect(() => {
+    if (previousWorktree !== worktreePath) {
+      // Save the current state to the previous worktree's cache
+      if (previousWorktree) {
+        worktreeGridStateCache.set(previousWorktree, rootNode);
+      }
+      
+      // Load the state for the new worktree
+      const cached = worktreeGridStateCache.get(worktreePath);
+      if (cached) {
+        setRootNode(cached);
+      } else {
+        // Reset to single terminal for new worktree
+        setRootNode({
+          id: 'terminal-1',
+          type: 'terminal'
+        });
+      }
+      
+      setPreviousWorktree(worktreePath);
+    }
+  }, [worktreePath, previousWorktree, rootNode]);
+
+  // Save current state to cache when rootNode changes
+  useEffect(() => {
+    worktreeGridStateCache.set(worktreePath, rootNode);
+  }, [worktreePath, rootNode]);
 
   const findNodeById = useCallback((node: GridNode, id: string): GridNode | null => {
     if (node.id === id) return node;
