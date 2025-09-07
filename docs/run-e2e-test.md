@@ -32,30 +32,13 @@ This command builds:
 
 ### 3. Fix Electron Installation (if needed)
 
-If you encounter "Process failed to launch!" errors during E2E tests, it's likely due to a corrupted Electron installation. Fix it using one of these methods:
+If you encounter "Process failed to launch!" errors during E2E tests, it's likely due to a corrupted Electron installation. Fix it using:
 
-#### Option A: Use the reset script (recommended)
 ```bash
-pnpm run dev:desktop:reset
+pnpm fix:electron
 ```
 
-This script will:
-- Remove corrupted Electron framework files
-- Prune the pnpm store
-- Force reinstall dependencies
-- Properly install the Electron binary
-
-#### Option B: Manual fix
-```bash
-# Navigate to the Electron module directory
-cd node_modules/.pnpm/electron@30.5.1/node_modules/electron
-
-# Run the install script
-node install.js
-
-# Return to project root
-cd -
-```
+This command will properly install the Electron binary by running the install script in the Electron module directory.
 
 ### 4. Run the E2E Tests
 
@@ -99,7 +82,7 @@ pnpm --filter @vibetree/desktop test:e2e:ui
 ## Troubleshooting
 
 ### Issue: "Process failed to launch!" errors
-**Solution:** Run the Electron reset script as described in step 3.
+**Solution:** Run `pnpm fix:electron` to fix the Electron installation.
 
 ### Issue: TypeScript compilation errors
 **Solution:** Ensure workspace dependencies are built with `pnpm build:deps`.
@@ -126,7 +109,7 @@ pnpm install
 pnpm build:deps
 
 # Fix Electron if needed
-pnpm run dev:desktop:reset
+pnpm fix:electron
 
 # Run E2E tests
 pnpm --filter @vibetree/desktop test:e2e

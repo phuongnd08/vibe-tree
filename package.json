@@ -18,7 +18,8 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "clean": "turbo run clean",
-    "package:desktop": "pnpm --filter @vibetree/desktop package"
+    "package:desktop": "pnpm --filter @vibetree/desktop package",
+    "fix:electron": "cd node_modules/.pnpm/electron@30.5.1/node_modules/electron && node install.js && cd -"
   },
   "keywords": [
     "electron",
