@@ -14,25 +14,25 @@ test.describe('Terminal Arithmetic Test', () => {
     // Create a dummy git repository for testing
     const timestamp = Date.now();
     dummyRepoPath = path.join(os.tmpdir(), `dummy-repo-${timestamp}`);
-    
+
     // Create the directory and initialize git repo
     fs.mkdirSync(dummyRepoPath, { recursive: true });
     execSync('git init', { cwd: dummyRepoPath });
     execSync('git config user.email "test@example.com"', { cwd: dummyRepoPath });
     execSync('git config user.name "Test User"', { cwd: dummyRepoPath });
-    
+
     // Create a dummy file and make initial commit
     fs.writeFileSync(path.join(dummyRepoPath, 'README.md'), '# Test Repository\n');
     execSync('git add .', { cwd: dummyRepoPath });
     execSync('git commit -m "Initial commit"', { cwd: dummyRepoPath });
-    
+
     // Create main branch (some git versions don't create it by default)
     try {
       execSync('git branch -M main', { cwd: dummyRepoPath });
     } catch (e) {
       // Ignore if branch already exists
     }
-    
+
     console.log('Created dummy repo at:', dummyRepoPath);
 
     const testMainPath = path.join(__dirname, '../dist/main/test-index.js');
@@ -50,7 +50,7 @@ test.describe('Terminal Arithmetic Test', () => {
     if (electronApp) {
       await electronApp.close();
     }
-    
+
     // Clean up the dummy repository
     if (dummyRepoPath && fs.existsSync(dummyRepoPath)) {
       try {
@@ -91,19 +91,10 @@ test.describe('Terminal Arithmetic Test', () => {
     await page.waitForTimeout(3000);
 
     // Try to find the worktree button using data attribute - in the dummy repo it should be main or master
-    let worktreeButton = page.locator('button[data-worktree-branch="main"]');
-    
-    // If main not found, try master
-    if (await worktreeButton.count() === 0) {
-      worktreeButton = page.locator('button[data-worktree-branch="master"]');
-    }
-    
-    // If still not found, try any worktree button with data attribute
-    if (await worktreeButton.count() === 0) {
-      worktreeButton = page.locator('button[data-worktree-branch]').first();
-    }
+    const worktreeButton = page.locator('button[data-worktree-branch="main"]');
 
     const worktreeCount = await worktreeButton.count();
+
     expect(worktreeCount).toBeGreaterThan(0);
 
     // Click the worktree button to open the terminal
