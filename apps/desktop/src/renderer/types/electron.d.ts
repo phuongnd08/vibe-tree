@@ -23,7 +23,7 @@ export interface ElectronAPI {
     diffStaged: (worktreePath: string, filePath?: string) => Promise<string>;
   };
   shell: {
-    start: (worktreePath: string, cols?: number, rows?: number, forceNew?: boolean) => Promise<{ success: boolean; processId?: string; isNew?: boolean; error?: string }>;
+    start: (worktreePath: string, cols?: number, rows?: number, forceNew?: boolean, terminalId?: string) => Promise<{ success: boolean; processId?: string; isNew?: boolean; error?: string }>;
     write: (processId: string, data: string) => Promise<{ success: boolean; error?: string }>;
     resize: (processId: string, cols: number, rows: number) => Promise<{ success: boolean; error?: string }>;
     status: (processId: string) => Promise<{ running: boolean }>;

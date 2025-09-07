@@ -19,14 +19,14 @@ const worktreeGridStateCache = new Map<string, GridNode>();
 
 export function ClaudeTerminalGrid({ worktreePath, projectId, theme = 'dark' }: ClaudeTerminalGridProps) {
   // Get or create initial state for this worktree
-  const getInitialState = useCallback(() => {
+  const getInitialState = useCallback((): GridNode => {
     const cached = worktreeGridStateCache.get(worktreePath);
     if (cached) {
       return cached;
     }
     return {
       id: 'terminal-1',
-      type: 'terminal'
+      type: 'terminal' as const
     };
   }, [worktreePath]);
 
