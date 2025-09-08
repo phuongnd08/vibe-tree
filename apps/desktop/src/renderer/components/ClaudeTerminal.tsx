@@ -3,7 +3,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
-import { useXTerm } from 'react-xtermjs';
+import { useTerminal } from '../hooks/useTerminal';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Code2 } from 'lucide-react';
@@ -96,8 +96,8 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
     macOptionIsMeta: true
   }), [theme]);
 
-  // Initialize useXTerm with terminal options
-  const { instance: terminal, ref: terminalRef } = useXTerm({
+  // Initialize useTerminal with terminal options
+  const { instance: terminal, ref: terminalRef } = useTerminal({
     options: terminalOptions
   });
 
@@ -426,7 +426,7 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
       {/* Terminal container */}
       <div 
-        ref={terminalRef as React.RefObject<HTMLDivElement>} 
+        ref={terminalRef} 
         className={`flex-1 h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
         style={{ minHeight: '100px' }}
       />

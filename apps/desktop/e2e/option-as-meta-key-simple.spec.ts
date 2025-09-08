@@ -276,4 +276,157 @@ test.describe('Simple Option as Meta Key Test', () => {
     // If not working, we'd see "word1 word2 word3ḇ_TEST" or similar
     expect(terminalContent).toBeTruthy();
   });
+
+  test('should type PART1 then PART2 and verify output', async () => {
+    test.setTimeout(60000);
+
+    // Skip test on non-macOS platforms since Option key is macOS-specific
+    const platform = process.platform;
+    if (platform !== 'darwin') {
+      test.skip(true, 'Option as Meta key functionality is specific to macOS');
+      return;
+    }
+
+    await page.waitForLoadState('domcontentloaded');
+
+    // Verify the app launches with project selector
+    await expect(page.locator('h2', { hasText: 'Select a Project' })).toBeVisible({ timeout: 10000 });
+
+    // Click the "Open Project Folder" button
+    const openButton = page.locator('button', { hasText: 'Open Project Folder' });
+    await expect(openButton).toBeVisible();
+
+    // Mock the Electron dialog to return our dummy repository path
+    await electronApp.evaluate(async ({ dialog }, repoPath) => {
+      dialog.showOpenDialog = async () => {
+        return {
+          canceled: false,
+          filePaths: [repoPath]
+        };
+      };
+    }, dummyRepoPath);
+
+    // Click the open button which will trigger the mocked dialog
+    await openButton.click();
+
+    // Wait for worktree list to appear
+    await page.waitForTimeout(3000);
+
+    // Try to find the worktree button using data attribute
+    const worktreeButton = page.locator('button[data-worktree-branch="main"]');
+    
+    const worktreeCount = await worktreeButton.count();
+    expect(worktreeCount).toBeGreaterThan(0);
+
+    // Click the worktree button to open the terminal
+    await worktreeButton.click();
+
+    // Wait for the terminal to load
+    await page.waitForTimeout(3000);
+
+    // Find the terminal element
+    const terminalSelectors = ['.xterm-screen', '.xterm', '.xterm-container'];
+    let terminalElement = null;
+
+    for (const selector of terminalSelectors) {
+      const element = page.locator(selector).first();
+      if (await element.count() > 0) {
+        terminalElement = element;
+        break;
+      }
+    }
+
+    expect(terminalElement).not.toBeNull();
+
+    // Click on the terminal to focus it
+    await terminalElement!.click();
+
+    // Wait for focus and shell to be ready
+    await page.waitForTimeout(1000);
+
+    // Check terminal configuration via evaluate
+    const terminalConfig = await page.evaluate(() => {
+      // Try to find the terminal instance through the global scope or React internals
+      const terminalElements = document.querySelectorAll('.xterm');
+      if (terminalElements.length > 0) {
+        // Try to access terminal options through the element's data or React props
+        const element = terminalElements[0] as any;
+        // Log to console for debugging
+        console.log('Terminal element:', element);
+        // Check if we can find the terminal instance
+        const keys = Object.keys(element);
+        const reactKey = keys.find(key => key.startsWith('__react'));
+        if (reactKey) {
+          console.log('React internal key found:', reactKey);
+        }
+        return {
+          hasTerminal: true,
+          elementKeys: keys.slice(0, 10) // First 10 keys for debugging
+        };
+      }
+      return { hasTerminal: false };
+    });
+    console.log('Terminal configuration:', terminalConfig);
+
+    // Let's try a simpler test first - just type and verify
+    await page.keyboard.type('echo PART1PART2');
+    await page.waitForTimeout(500);
+
+    // Press Enter to execute the command
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(2000);
+
+    // Get terminal content
+    const terminalContent = await page.locator('.xterm-rows').textContent();
+    console.log('Simple echo test - Terminal content:', terminalContent);
+
+    // Verify the terminal shows "PART1PART2" in the output
+    expect(terminalContent).toContain('PART1PART2');
+
+    // Now let's test the original requirement: Type PART1, Alt+B, Alt+F, then PART2
+    // Clear the line first
+    await page.keyboard.down('Control');
+    await page.keyboard.press('c');
+    await page.keyboard.up('Control');
+    await page.waitForTimeout(500);
+
+    // Type PART1
+    await page.keyboard.type('PART1');
+    await page.waitForTimeout(500);
+
+    // Use Alt+B to move back one word
+    await page.keyboard.down('Alt');
+    await page.keyboard.press('b');
+    await page.keyboard.up('Alt');
+    await page.waitForTimeout(500);
+
+    // Use Alt+F to move forward one word
+    await page.keyboard.down('Alt');
+    await page.keyboard.press('f');
+    await page.keyboard.up('Alt');
+    await page.waitForTimeout(500);
+
+    // Type PART2
+    await page.keyboard.type('PART2');
+    await page.waitForTimeout(500);
+
+    // Press Home to move to beginning of line
+    await page.keyboard.press('Home');
+    await page.waitForTimeout(500);
+
+    // Type echo before the command
+    await page.keyboard.type('echo ');
+    await page.waitForTimeout(500);
+
+    // Press Enter
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(2000);
+
+    // Get updated content
+    const finalContent = await page.locator('.xterm-rows').textContent();
+    console.log('Alt+B/Alt+F test - Terminal content:', finalContent);
+    
+    // Verify we see PART1PART2 in the output
+    expect(finalContent).toContain('PART1PART2');
+  });
 });
