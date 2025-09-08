@@ -39,8 +39,8 @@ export class ShellSessionManager {
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   private constructor() {
-    // Start cleanup timer
-    this.cleanupInterval = setInterval(() => this.cleanupInactiveSessions(), 60000);
+    // Cleanup timer disabled - keep sessions alive for Claude feedback
+    // this.cleanupInterval = setInterval(() => this.cleanupInactiveSessions(), 60000);
   }
 
   /**
