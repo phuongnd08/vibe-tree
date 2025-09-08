@@ -175,8 +175,8 @@ test.describe('Worktree Switch Double Character Bug', () => {
     await page.keyboard.type('echo');
     await page.waitForTimeout(1000);
 
-    // Get the terminal content
-    const terminalContent = await page.locator('.xterm-screen').textContent();
+    // Get the terminal content from the visible terminal
+    const terminalContent = await page.locator('.xterm-screen:visible').first().textContent();
     console.log('Terminal content after typing "echo":', terminalContent);
 
     // The bug causes "eecchhoo" to appear instead of "echo"

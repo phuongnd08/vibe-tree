@@ -159,15 +159,24 @@ test.describe('Worktree Terminal Content Preservation', () => {
     console.log('Waiting 3 seconds for worktree to load...');
     await page.waitForTimeout(3000);
 
-    // Verify we have a terminal in wt1
+    // Verify we have terminals in wt1 (one visible, one hidden)
     console.log('\n--- Checking terminal in wt1 ---');
     terminalContainers = page.locator('.xterm-screen');
     terminalCount = await terminalContainers.count();
     console.log(`Terminal count in wt1: ${terminalCount}`);
-    expect(terminalCount).toBe(1);
+    
+    // With the new TerminalManager, we expect 2 terminals (main hidden, wt1 visible)
+    expect(terminalCount).toBe(2);
+    
+    // Verify exactly one terminal is visible
+    const visibleTerminals = page.locator('.xterm-screen:visible');
+    const visibleCount = await visibleTerminals.count();
+    expect(visibleCount).toBe(1);
+    console.log(`Visible terminal count in wt1: ${visibleCount}`);
     
     // Type something in wt1 terminal to make it distinct
-    const wt1Terminal = terminalContainers.first();
+    // Find the visible terminal
+    const wt1Terminal = page.locator('.xterm-screen:visible').first();
     await wt1Terminal.click();
     await page.waitForTimeout(500);
     await page.keyboard.type('echo "This is wt1"');
@@ -192,9 +201,17 @@ test.describe('Worktree Terminal Content Preservation', () => {
     terminalContainers = page.locator('.xterm-screen');
     terminalCount = await terminalContainers.count();
     console.log(`Terminal count in main (after switch back): ${terminalCount}`);
-    expect(terminalCount).toBe(1);
     
-    const mainTerminalAfter = terminalContainers.first();
+    // We should still have 2 terminals (main visible, wt1 hidden)
+    expect(terminalCount).toBe(2);
+    
+    // Verify exactly one terminal is visible
+    const visibleTerminalsAfter = page.locator('.xterm-screen:visible');
+    const visibleCountAfter = await visibleTerminalsAfter.count();
+    expect(visibleCountAfter).toBe(1);
+    console.log(`Visible terminal count in main (after switch back): ${visibleCountAfter}`);
+    
+    const mainTerminalAfter = page.locator('.xterm-screen:visible').first();
     const mainTerminalContentAfter = await mainTerminalAfter.textContent();
     console.log(`Main terminal content after switching back: ${mainTerminalContentAfter?.substring(0, 200)}...`);
     
