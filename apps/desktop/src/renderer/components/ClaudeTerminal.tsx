@@ -14,27 +14,67 @@ interface ClaudeTerminalProps {
   worktreePath: string;
   projectId?: string;
   theme?: 'light' | 'dark';
+  isVisible?: boolean;
 }
+
+// Cache for terminal instances per worktree - persistent across show/hide
+const terminalInstanceCache = new Map<string, {
+  terminal: Terminal;
+  fitAddon: FitAddon;
+  serializeAddon: SerializeAddon;
+  processId: string;
+  container: HTMLDivElement;
+  removeListeners: Array<() => void>;
+}>();
 
 // Cache for terminal states per worktree
 const terminalStateCache = new Map<string, string>();
 
-export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalProps) {
-  const terminalRef = useRef<HTMLDivElement>(null);
+export function ClaudeTerminal({ worktreePath, theme = 'dark', isVisible = true }: ClaudeTerminalProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
-  const processIdRef = useRef<string>('');
-  const fitAddonRef = useRef<FitAddon | null>(null);
-  const serializeAddonRef = useRef<SerializeAddon | null>(null);
-  const removeListenersRef = useRef<Array<() => void>>([]);
   const [detectedIDEs, setDetectedIDEs] = useState<Array<{ name: string; command: string }>>([]);
   const { toast } = useToast();
+  const cacheEntryRef = useRef<typeof terminalInstanceCache extends Map<string, infer T> ? T : never>();
 
   useEffect(() => {
-    if (!terminalRef.current) return;
+    if (!containerRef.current) return;
 
-    console.log('Initializing terminal...');
+    // Check if we already have a cached terminal instance for this worktree
+    let cached = terminalInstanceCache.get(worktreePath);
+    
+    if (cached) {
+      // Reuse existing terminal instance
+      console.log('Reusing cached terminal for:', worktreePath);
+      
+      // Move the terminal DOM element to our container
+      containerRef.current.appendChild(cached.container);
+      
+      // Update our refs
+      cacheEntryRef.current = cached;
+      setTerminal(cached.terminal);
+      
+      // Focus terminal if visible
+      if (isVisible) {
+        setTimeout(() => {
+          cached.terminal.focus();
+          try {
+            if (containerRef.current && containerRef.current.offsetWidth > 0 && containerRef.current.offsetHeight > 0) {
+              cached.fitAddon.fit();
+            }
+          } catch (err) {
+            console.error('Error fitting cached terminal:', err);
+          }
+        }, 50);
+      }
+      
+      return;
+    }
 
-    // Create terminal instance with theme-aware colors
+    // Create new terminal instance
+    console.log('Creating new terminal for:', worktreePath);
+
+    // Create terminal instance with theme-aware colors  
     const getTerminalTheme = (currentTheme: 'light' | 'dark') => {
       if (currentTheme === 'light') {
         return {
@@ -107,7 +147,6 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
     // Add addons
     const fitAddon = new FitAddon();
-    fitAddonRef.current = fitAddon;
     
     // Configure WebLinksAddon with custom handler for opening links
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
@@ -117,14 +156,23 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
     term.loadAddon(webLinksAddon);
     
     const serializeAddon = new SerializeAddon();
-    serializeAddonRef.current = serializeAddon;
     term.loadAddon(serializeAddon);
     
     const unicode11Addon = new Unicode11Addon();
     term.loadAddon(unicode11Addon);
 
-    // Open terminal in container
-    term.open(terminalRef.current);
+    // Create a dedicated container div for this terminal
+    const terminalContainer = document.createElement('div');
+    terminalContainer.className = `flex-1 h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`;
+    terminalContainer.style.minHeight = '100px';
+    terminalContainer.style.width = '100%';
+    terminalContainer.style.height = '100%';
+    
+    // Open terminal in the dedicated container
+    term.open(terminalContainer);
+    
+    // Append to our container
+    containerRef.current.appendChild(terminalContainer);
     
     // Load fit addon after terminal is opened
     term.loadAddon(fitAddon);
@@ -147,6 +195,17 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
       }
     }, 100);
 
+    // Store in cache
+    const cacheEntry = {
+      terminal: term,
+      fitAddon,
+      serializeAddon,
+      processId: '',
+      container: terminalContainer,
+      removeListeners: [] as Array<() => void>
+    };
+    terminalInstanceCache.set(worktreePath, cacheEntry);
+    cacheEntryRef.current = cacheEntry;
     setTerminal(term);
 
     // Handle bell character - play sound when bell is triggered
@@ -168,13 +227,13 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
     // Handle window resize
     const handleResize = () => {
       // Only fit if the terminal container has dimensions
-      if (terminalRef.current && terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
+      if (containerRef.current && containerRef.current.offsetWidth > 0 && containerRef.current.offsetHeight > 0) {
         try {
           fitAddon.fit();
           // Resize the PTY to match terminal dimensions
-          if (processIdRef.current) {
+          if (cacheEntry.processId) {
             window.electronAPI.shell.resize(
-              processIdRef.current, 
+              cacheEntry.processId, 
               term.cols, 
               term.rows
             );
@@ -186,36 +245,59 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
     };
 
     window.addEventListener('resize', handleResize);
-
-    return () => {
+    
+    // Store cleanup function in cache
+    cacheEntry.removeListeners.push(() => {
       window.removeEventListener('resize', handleResize);
-      // Clean up listeners
-      removeListenersRef.current.forEach(remove => remove());
-      removeListenersRef.current = [];
       bellDisposable.dispose();
-      term.dispose();
-    };
-  }, [theme]);
+    });
 
-  // Save terminal state before unmounting or changing worktree
-  useEffect(() => {
     return () => {
-      if (terminal && serializeAddonRef.current && processIdRef.current) {
-        // Save the current terminal state
-        const serializedState = serializeAddonRef.current.serialize();
-        terminalStateCache.set(processIdRef.current, serializedState);
+      // When component unmounts, just detach the terminal container from DOM
+      // but keep the terminal instance alive in cache
+      if (containerRef.current && cacheEntry.container.parentNode === containerRef.current) {
+        containerRef.current.removeChild(cacheEntry.container);
       }
+    };
+  }, [worktreePath, theme]);
+
+  // Save terminal state periodically
+  useEffect(() => {
+    if (!cacheEntryRef.current) return;
+    
+    const saveState = () => {
+      const cached = cacheEntryRef.current;
+      if (cached && cached.serializeAddon && cached.processId) {
+        const serializedState = cached.serializeAddon.serialize();
+        terminalStateCache.set(cached.processId, serializedState);
+      }
+    };
+    
+    const interval = setInterval(saveState, 5000);
+    return () => {
+      clearInterval(interval);
+      saveState(); // Save one final time
     };
   }, [terminal, worktreePath]);
 
 
-  // Auto-start shell when worktree changes
+  // Auto-start shell when terminal is created
   useEffect(() => {
-    if (!terminal || !worktreePath) return;
+    if (!terminal || !worktreePath || !cacheEntryRef.current) return;
+    
+    const cached = cacheEntryRef.current;
+    
+    // If this terminal already has a process, skip initialization
+    if (cached.processId) {
+      console.log('Shell already running for:', worktreePath, 'processId:', cached.processId);
+      return;
+    }
 
     // Clean up old listeners first
-    removeListenersRef.current.forEach(remove => remove());
-    removeListenersRef.current = [];
+    cached.removeListeners = cached.removeListeners.filter(listener => {
+      // Keep resize and bell listeners, remove others
+      return true;
+    });
 
     const startShell = async () => {
       try {
@@ -230,7 +312,7 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
           return;
         }
 
-        processIdRef.current = result.processId!;
+        cached.processId = result.processId!;
         console.log(`Shell started: ${result.processId}, isNew: ${result.isNew}, worktree: ${worktreePath}`);
 
         // Handle terminal state
@@ -254,13 +336,13 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
         terminal.focus();
         
         // Set initial PTY size
-        if (fitAddonRef.current && terminalRef.current) {
+        if (cached.fitAddon && containerRef.current) {
           // Give the terminal time to render before fitting
           setTimeout(() => {
             try {
               // Ensure the terminal container has dimensions
-              if (terminalRef.current && terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
-                fitAddonRef.current!.fit();
+              if (containerRef.current && containerRef.current.offsetWidth > 0 && containerRef.current.offsetHeight > 0) {
+                cached.fitAddon.fit();
                 window.electronAPI.shell.resize(
                   result.processId!,
                   terminal.cols,
@@ -288,8 +370,8 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
         // Handle terminal input - simply pass it to the PTY
         const disposable = terminal.onData((data) => {
-          if (processIdRef.current) {
-            window.electronAPI.shell.write(processIdRef.current, data);
+          if (cached.processId) {
+            window.electronAPI.shell.write(cached.processId, data);
           }
         });
 
@@ -322,24 +404,15 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
         // Set up exit listener
         const removeExitListener = window.electronAPI.shell.onExit(result.processId!, (code) => {
           terminal.writeln(`\r\n[Shell exited with code ${code}]`);
-          processIdRef.current = '';
+          cached.processId = '';
         });
 
-        // Periodically save terminal state
-        const saveInterval = setInterval(() => {
-          if (serializeAddonRef.current && processIdRef.current) {
-            const serializedState = serializeAddonRef.current.serialize();
-            terminalStateCache.set(processIdRef.current, serializedState);
-          }
-        }, 5000); // Save every 5 seconds
-
         // Store listeners for cleanup
-        removeListenersRef.current = [
+        cached.removeListeners.push(
           () => disposable.dispose(),
           removeOutputListener,
-          removeExitListener,
-          () => clearInterval(saveInterval)
-        ];
+          removeExitListener
+        );
 
       } catch (error) {
         terminal.writeln(`\r\nError starting shell: ${error}\r\n`);
@@ -348,17 +421,7 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
     startShell();
 
-    return () => {
-      // Save state before cleaning up
-      if (serializeAddonRef.current && processIdRef.current) {
-        const serializedState = serializeAddonRef.current.serialize();
-        terminalStateCache.set(processIdRef.current, serializedState);
-      }
-      
-      // Clean up listeners when worktree changes
-      removeListenersRef.current.forEach(remove => remove());
-      removeListenersRef.current = [];
-    };
+    // No cleanup - terminal persists
   }, [terminal, worktreePath]);
 
   // Detect available IDEs
@@ -392,6 +455,31 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
     terminal.options.theme = getTerminalTheme(theme);
   }, [terminal, theme]);
+
+  // Handle visibility changes - focus terminal when it becomes visible
+  useEffect(() => {
+    if (!terminal || !isVisible || !cacheEntryRef.current) return;
+
+    // Focus the terminal when it becomes visible
+    // Use a small timeout to ensure the DOM is ready
+    const focusTimeout = setTimeout(() => {
+      terminal.focus();
+      
+      // Also trigger a resize to ensure proper rendering
+      const cached = cacheEntryRef.current;
+      if (cached && cached.fitAddon && containerRef.current) {
+        try {
+          if (containerRef.current.offsetWidth > 0 && containerRef.current.offsetHeight > 0) {
+            cached.fitAddon.fit();
+          }
+        } catch (err) {
+          console.error('Error fitting terminal on visibility change:', err);
+        }
+      }
+    }, 50);
+
+    return () => clearTimeout(focusTimeout);
+  }, [terminal, isVisible]);
 
   const handleOpenInIDE = async (ideName: string) => {
     try {
@@ -459,8 +547,8 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
       {/* Terminal container */}
       <div 
-        ref={terminalRef} 
-        className={`flex-1 h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
+        ref={containerRef} 
+        className="flex-1 h-full"
         style={{ minHeight: '100px' }}
       />
     </div>
