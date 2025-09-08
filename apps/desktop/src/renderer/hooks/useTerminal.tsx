@@ -33,7 +33,7 @@ export function useTerminal({ options, addons, listeners }: UseTerminalOptions =
     if (!terminalRef.current) return;
 
     // Create terminal with all options properly set at initialization
-    const instance = new Terminal({
+    const terminalOptions = {
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       fontSize: 14,
       lineHeight: 1.2,
@@ -46,7 +46,10 @@ export function useTerminal({ options, addons, listeners }: UseTerminalOptions =
       allowProposedApi: true,
       macOptionIsMeta: true,
       ...options, // Allow overriding defaults
-    });
+    };
+    
+    console.log('Creating terminal with macOptionIsMeta:', terminalOptions.macOptionIsMeta);
+    const instance = new Terminal(terminalOptions);
 
     // Load optional addons
     addons?.forEach((addon) => instance.loadAddon(addon));
@@ -68,6 +71,10 @@ export function useTerminal({ options, addons, listeners }: UseTerminalOptions =
     // Open terminal in the DOM element
     instance.open(terminalRef.current);
     instance.focus();
+    
+    // Verify macOptionIsMeta is set
+    console.log('Terminal options after creation:', instance.options);
+    console.log('macOptionIsMeta value:', instance.options.macOptionIsMeta);
 
     setTerminalInstance(instance);
 

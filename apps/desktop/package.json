@@ -10,6 +10,8 @@
     "dev:preload": "tsc -w -p tsconfig.preload.json",
     "dev:renderer": "vite",
     "dev:electron": "node wait-for-dev-server.js && wait-on dist/main/index.js && wait-on dist/preload/index.js && electron .",
+    "dev:debug": "concurrently \"pnpm dev:main\" \"pnpm dev:preload\" \"pnpm dev:renderer\" \"pnpm dev:electron:debug\"",
+    "dev:electron:debug": "node wait-for-dev-server.js && wait-on dist/main/index.js && wait-on dist/preload/index.js && electron . --remote-debugging-port=9222",
     "prebuild": "cd ../../packages/core && pnpm build",
     "build": "pnpm build:main && pnpm build:preload && pnpm build:renderer",
     "build:main": "tsc -p tsconfig.main.json",
