@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo, memo } from 'react';
 import { ClaudeTerminal } from './ClaudeTerminal';
 
 interface TerminalManagerProps {
@@ -7,65 +7,43 @@ interface TerminalManagerProps {
   theme?: 'light' | 'dark';
 }
 
-interface TerminalInstance {
-  worktreePath: string;
-  isVisible: boolean;
-}
+// Memoized terminal component to prevent re-renders
+const MemoizedTerminal = memo(ClaudeTerminal);
 
 export function TerminalManager({ worktreePath, projectId, theme }: TerminalManagerProps) {
-  const [terminals, setTerminals] = useState<Map<string, TerminalInstance>>(new Map());
+  const [terminalsMap, setTerminalsMap] = useState<Map<string, boolean>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Track which terminals have been created
   useEffect(() => {
-    setTerminals(prevTerminals => {
-      const newTerminals = new Map(prevTerminals);
-      
-      // Hide all existing terminals
-      for (const [path, terminal] of newTerminals) {
-        if (terminal.isVisible) {
-          newTerminals.set(path, {
-            ...terminal,
-            isVisible: false
-          });
-        }
+    setTerminalsMap(prev => {
+      const newMap = new Map(prev);
+      if (!newMap.has(worktreePath)) {
+        newMap.set(worktreePath, true);
       }
-      
-      // Show or create terminal for current worktree
-      if (!newTerminals.has(worktreePath)) {
-        // Create new terminal instance
-        newTerminals.set(worktreePath, {
-          worktreePath,
-          isVisible: true
-        });
-      } else {
-        // Show existing terminal
-        const existingTerminal = newTerminals.get(worktreePath)!;
-        newTerminals.set(worktreePath, {
-          ...existingTerminal,
-          isVisible: true
-        });
-      }
-      
-      return newTerminals;
+      return newMap;
     });
-  }, [worktreePath, projectId, theme]);
+  }, [worktreePath]);
 
+  // Get all terminal paths that have been created
+  const terminalPaths = useMemo(() => Array.from(terminalsMap.keys()), [terminalsMap]);
 
   return (
     <div ref={containerRef} className="flex-1 h-full relative">
-      {Array.from(terminals.values()).map((terminal) => (
+      {terminalPaths.map((path) => (
         <div
-          key={terminal.worktreePath}
+          key={path}
           className="absolute inset-0 w-full h-full"
           style={{
-            display: terminal.isVisible ? 'block' : 'none'
+            display: path === worktreePath ? 'block' : 'none',
+            visibility: path === worktreePath ? 'visible' : 'hidden'
           }}
         >
-          <ClaudeTerminal
-            key={terminal.worktreePath}
-            worktreePath={terminal.worktreePath}
+          <MemoizedTerminal
+            worktreePath={path}
             projectId={projectId}
             theme={theme}
+            isVisible={path === worktreePath}
           />
         </div>
       ))}
