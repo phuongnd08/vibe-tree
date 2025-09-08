@@ -6,7 +6,7 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { Code2, Columns2, X } from 'lucide-react';
+import { Code2 } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import '@xterm/xterm/css/xterm.css';
 
@@ -18,27 +18,15 @@ interface ClaudeTerminalProps {
 
 // Cache for terminal states per worktree
 const terminalStateCache = new Map<string, string>();
-// Cache for split state per worktree
-const worktreeSplitStateCache = new Map<string, boolean>();
 
 export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
-  const splitTerminalRef = useRef<HTMLDivElement>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
-  const [splitTerminal, setSplitTerminal] = useState<Terminal | null>(null);
   const processIdRef = useRef<string>('');
-  const splitProcessIdRef = useRef<string>('');
   const fitAddonRef = useRef<FitAddon | null>(null);
-  const splitFitAddonRef = useRef<FitAddon | null>(null);
   const serializeAddonRef = useRef<SerializeAddon | null>(null);
-  const splitSerializeAddonRef = useRef<SerializeAddon | null>(null);
   const removeListenersRef = useRef<Array<() => void>>([]);
-  const removeSplitListenersRef = useRef<Array<() => void>>([]);
   const [detectedIDEs, setDetectedIDEs] = useState<Array<{ name: string; command: string }>>([]);
-  const [isSplit, setIsSplit] = useState(() => {
-    // Initialize split state from cache for this worktree
-    return worktreeSplitStateCache.get(worktreePath) || false;
-  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -220,11 +208,6 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
     };
   }, [terminal, worktreePath]);
 
-  // Update split state when worktree changes
-  useEffect(() => {
-    const savedSplitState = worktreeSplitStateCache.get(worktreePath) || false;
-    setIsSplit(savedSplitState);
-  }, [worktreePath]);
 
   // Auto-start shell when worktree changes
   useEffect(() => {
@@ -429,468 +412,57 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
     }
   };
 
-  const toggleSplit = () => {
-    if (isSplit) {
-      // Close split terminal
-      removeSplitListenersRef.current.forEach(remove => remove());
-      removeSplitListenersRef.current = [];
-      if (splitTerminal) {
-        splitTerminal.dispose();
-        setSplitTerminal(null);
-      }
-      if (splitProcessIdRef.current) {
-        terminalStateCache.delete(splitProcessIdRef.current);
-        splitProcessIdRef.current = '';
-      }
-      setIsSplit(false);
-      // Update cache
-      worktreeSplitStateCache.set(worktreePath, false);
-    } else {
-      // Open split terminal
-      setIsSplit(true);
-      // Update cache
-      worktreeSplitStateCache.set(worktreePath, true);
-      // The split terminal will be initialized by useEffect
-    }
-  };
 
-  const closeSplitTerminal = () => {
-    removeSplitListenersRef.current.forEach(remove => remove());
-    removeSplitListenersRef.current = [];
-    if (splitTerminal) {
-      splitTerminal.dispose();
-      setSplitTerminal(null);
-    }
-    if (splitProcessIdRef.current) {
-      terminalStateCache.delete(splitProcessIdRef.current);
-      splitProcessIdRef.current = '';
-    }
-    setIsSplit(false);
-    // Update cache
-    worktreeSplitStateCache.set(worktreePath, false);
-  };
 
-  // Initialize split terminal when isSplit becomes true
-  useEffect(() => {
-    if (!isSplit || !splitTerminalRef.current || !worktreePath) return;
-
-    console.log('Initializing split terminal...');
-
-    const getTerminalTheme = (currentTheme: 'light' | 'dark') => {
-      if (currentTheme === 'light') {
-        return {
-          background: '#ffffff',
-          foreground: '#000000',
-          cursor: '#000000',
-          cursorAccent: '#ffffff',
-          selectionBackground: '#b5b5b5',
-          black: '#000000',
-          red: '#cd3131',
-          green: '#0dbc79',
-          yellow: '#e5e510',
-          blue: '#2472c8',
-          magenta: '#bc3fbc',
-          cyan: '#11a8cd',
-          white: '#e5e5e5',
-          brightBlack: '#666666',
-          brightRed: '#f14c4c',
-          brightGreen: '#23d18b',
-          brightYellow: '#f5f543',
-          brightBlue: '#3b8eea',
-          brightMagenta: '#d670d6',
-          brightCyan: '#29b8db',
-          brightWhite: '#e5e5e5'
-        };
-      } else {
-        return {
-          background: '#000000',
-          foreground: '#ffffff',
-          cursor: '#ffffff',
-          cursorAccent: '#000000',
-          selectionBackground: '#4a4a4a',
-          black: '#000000',
-          red: '#cd3131',
-          green: '#0dbc79',
-          yellow: '#e5e510',
-          blue: '#2472c8',
-          magenta: '#bc3fbc',
-          cyan: '#11a8cd',
-          white: '#e5e5e5',
-          brightBlack: '#666666',
-          brightRed: '#f14c4c',
-          brightGreen: '#23d18b',
-          brightYellow: '#f5f543',
-          brightBlue: '#3b8eea',
-          brightMagenta: '#d670d6',
-          brightCyan: '#29b8db',
-          brightWhite: '#e5e5e5'
-        };
-      }
-    };
-
-    const term = new Terminal({
-      theme: getTerminalTheme(theme),
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      fontSize: 14,
-      lineHeight: 1.2,
-      cursorBlink: true,
-      allowTransparency: false,
-      convertEol: true,
-      scrollback: 10000,
-      tabStopWidth: 4,
-      windowsMode: false,
-      allowProposedApi: true,
-      macOptionIsMeta: true
-    });
-
-    // Add addons
-    const fitAddon = new FitAddon();
-    splitFitAddonRef.current = fitAddon;
-    
-    const webLinksAddon = new WebLinksAddon((_event, uri) => {
-      window.electronAPI.shell.openExternal(uri);
-    });
-    term.loadAddon(webLinksAddon);
-    
-    const serializeAddon = new SerializeAddon();
-    splitSerializeAddonRef.current = serializeAddon;
-    term.loadAddon(serializeAddon);
-    
-    const unicode11Addon = new Unicode11Addon();
-    term.loadAddon(unicode11Addon);
-
-    // Open terminal in container
-    term.open(splitTerminalRef.current);
-    term.loadAddon(fitAddon);
-    unicode11Addon.activate(term);
-    
-    // Fit and focus after a small delay
-    setTimeout(() => {
-      try {
-        if (splitTerminalRef.current && splitTerminalRef.current.offsetWidth > 0 && splitTerminalRef.current.offsetHeight > 0) {
-          fitAddon.fit();
-        }
-        term.focus();
-      } catch (err) {
-        console.error('Error during initial fit:', err);
-        term.focus();
-      }
-    }, 100);
-
-    setSplitTerminal(term);
-
-    // Start shell for split terminal
-    const startSplitShell = async () => {
-      try {
-        const cols = term.cols;
-        const rows = term.rows;
-        
-        const result = await window.electronAPI.shell.start(worktreePath, cols, rows, true); // forceNew = true for split terminal
-        
-        if (!result.success) {
-          term.writeln(`\r\nError: ${result.error || 'Failed to start shell'}\r\n`);
-          return;
-        }
-
-        splitProcessIdRef.current = result.processId!;
-        console.log(`Split shell started: ${result.processId}, isNew: ${result.isNew}, worktree: ${worktreePath}`);
-
-        if (result.isNew) {
-          term.clear();
-        } else {
-          const cachedState = terminalStateCache.get(result.processId!);
-          term.clear();
-          setTimeout(() => {
-            if (cachedState) {
-              term.write(cachedState);
-            }
-          }, 50);
-        }
-        
-        term.focus();
-        
-        // Set initial PTY size
-        setTimeout(() => {
-          try {
-            if (splitTerminalRef.current && splitTerminalRef.current.offsetWidth > 0 && splitTerminalRef.current.offsetHeight > 0) {
-              fitAddon.fit();
-              window.electronAPI.shell.resize(
-                result.processId!,
-                term.cols,
-                term.rows
-              );
-            } else {
-              window.electronAPI.shell.resize(
-                result.processId!,
-                80,
-                24
-              );
-            }
-          } catch (err) {
-            console.error('Error during PTY resize fit:', err);
-            window.electronAPI.shell.resize(
-              result.processId!,
-              80,
-              24
-            );
-          }
-        }, 100);
-
-        // Handle terminal input
-        const disposable = term.onData((data) => {
-          if (splitProcessIdRef.current) {
-            window.electronAPI.shell.write(splitProcessIdRef.current, data);
-          }
-        });
-
-        // Set up output listener
-        let lastWasClear = false;
-        const removeOutputListener = window.electronAPI.shell.onOutput(result.processId!, (data) => {
-          if (data.includes('\x1b[2J') && data.includes('\x1b[H')) {
-            term.clear();
-            term.write('\x1b[H');
-            lastWasClear = true;
-            // eslint-disable-next-line no-control-regex
-            const afterClear = data.split(/\x1b\[2J.*?\x1b\[H/)[1];
-            if (afterClear) {
-              term.write(afterClear);
-            }
-          } else if (lastWasClear && data.startsWith('\n')) {
-            lastWasClear = false;
-            term.write(data.substring(1));
-          } else {
-            lastWasClear = false;
-            term.write(data);
-          }
-        });
-
-        // Set up exit listener
-        const removeExitListener = window.electronAPI.shell.onExit(result.processId!, (code) => {
-          term.writeln(`\r\n[Shell exited with code ${code}]`);
-          splitProcessIdRef.current = '';
-        });
-
-        // Periodically save terminal state
-        const saveInterval = setInterval(() => {
-          if (splitSerializeAddonRef.current && splitProcessIdRef.current) {
-            const serializedState = splitSerializeAddonRef.current.serialize();
-            terminalStateCache.set(splitProcessIdRef.current, serializedState);
-          }
-        }, 5000);
-
-        // Store listeners for cleanup
-        removeSplitListenersRef.current = [
-          () => disposable.dispose(),
-          removeOutputListener,
-          removeExitListener,
-          () => clearInterval(saveInterval)
-        ];
-
-      } catch (error) {
-        term.writeln(`\r\nError starting shell: ${error}\r\n`);
-      }
-    };
-
-    startSplitShell();
-
-    // Handle window resize for split terminal
-    const handleResize = () => {
-      if (splitTerminalRef.current && splitTerminalRef.current.offsetWidth > 0 && splitTerminalRef.current.offsetHeight > 0) {
-        try {
-          fitAddon.fit();
-          if (splitProcessIdRef.current) {
-            window.electronAPI.shell.resize(
-              splitProcessIdRef.current, 
-              term.cols, 
-              term.rows
-            );
-          }
-        } catch (err) {
-          console.error('Error during resize fit:', err);
-        }
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      // Save state before cleaning up
-      if (splitSerializeAddonRef.current && splitProcessIdRef.current) {
-        const serializedState = splitSerializeAddonRef.current.serialize();
-        terminalStateCache.set(splitProcessIdRef.current, serializedState);
-      }
-      removeSplitListenersRef.current.forEach(remove => remove());
-      removeSplitListenersRef.current = [];
-      term.dispose();
-    };
-  }, [isSplit, worktreePath, theme]);
-
-  // Trigger resize when split state changes to ensure proper 50/50 layout
-  useEffect(() => {
-    const handleSplitResize = () => {
-      // Small delay to ensure DOM has updated
-      setTimeout(() => {
-        // Trigger resize for main terminal
-        if (terminalRef.current && fitAddonRef.current) {
-          try {
-            fitAddonRef.current.fit();
-            if (processIdRef.current && terminal) {
-              window.electronAPI.shell.resize(
-                processIdRef.current,
-                terminal.cols,
-                terminal.rows
-              );
-            }
-          } catch (err) {
-            console.error('Error resizing main terminal after split:', err);
-          }
-        }
-        
-        // Trigger resize for split terminal
-        if (isSplit && splitTerminalRef.current && splitFitAddonRef.current) {
-          try {
-            splitFitAddonRef.current.fit();
-            if (splitProcessIdRef.current && splitTerminal) {
-              window.electronAPI.shell.resize(
-                splitProcessIdRef.current,
-                splitTerminal.cols,
-                splitTerminal.rows
-              );
-            }
-          } catch (err) {
-            console.error('Error resizing split terminal after split:', err);
-          }
-        }
-      }, 100);
-    };
-
-    handleSplitResize();
-  }, [isSplit, terminal, splitTerminal]);
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      {/* Headers */}
-      <div className={`flex ${isSplit ? 'flex-row' : ''}`}>
-        <div className={`${isSplit ? 'w-1/2' : 'w-full'} h-[57px] px-4 border-b flex items-center justify-between flex-shrink-0`}>
-          <div className="min-w-0 flex-1">
-            <h3 className="font-semibold">Terminal</h3>
-            <p className="text-xs text-muted-foreground truncate">{worktreePath}</p>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={toggleSplit}
-              title="Split Terminal"
-            >
-              <Columns2 className="h-4 w-4" />
-            </Button>
-            {detectedIDEs.length > 0 && (
-              detectedIDEs.length === 1 ? (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => handleOpenInIDE(detectedIDEs[0].name)}
-                  title={`Open in ${detectedIDEs[0].name}`}
-                >
-                  <Code2 className="h-4 w-4" />
-                </Button>
-              ) : (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="icon" variant="ghost">
-                      <Code2 className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    {detectedIDEs.map((ide) => (
-                      <DropdownMenuItem
-                        key={ide.name}
-                        onClick={() => handleOpenInIDE(ide.name)}
-                      >
-                        Open in {ide.name}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )
-            )}
-          </div>
+      {/* Header */}
+      <div className="h-[57px] px-4 border-b flex items-center justify-between flex-shrink-0">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold">Terminal</h3>
+          <p className="text-xs text-muted-foreground truncate">{worktreePath}</p>
         </div>
-        {isSplit && (
-          <div className="w-1/2 h-[57px] px-4 border-b border-l flex items-center justify-between flex-shrink-0">
-            <div className="min-w-0 flex-1">
-              <h3 className="font-semibold">Terminal (Split)</h3>
-              <p className="text-xs text-muted-foreground truncate">{worktreePath}</p>
-            </div>
-            <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1">
+          {detectedIDEs.length > 0 && (
+            detectedIDEs.length === 1 ? (
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={toggleSplit}
-                title="Split Terminal"
+                onClick={() => handleOpenInIDE(detectedIDEs[0].name)}
+                title={`Open in ${detectedIDEs[0].name}`}
               >
-                <Columns2 className="h-4 w-4" />
+                <Code2 className="h-4 w-4" />
               </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={closeSplitTerminal}
-                title="Close Split Terminal"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-              {detectedIDEs.length > 0 && (
-                detectedIDEs.length === 1 ? (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleOpenInIDE(detectedIDEs[0].name)}
-                    title={`Open in ${detectedIDEs[0].name}`}
-                  >
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="icon" variant="ghost">
                     <Code2 className="h-4 w-4" />
                   </Button>
-                ) : (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="ghost">
-                        <Code2 className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      {detectedIDEs.map((ide) => (
-                        <DropdownMenuItem
-                          key={ide.name}
-                          onClick={() => handleOpenInIDE(ide.name)}
-                        >
-                          Open in {ide.name}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )
-              )}
-            </div>
-          </div>
-        )}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {detectedIDEs.map((ide) => (
+                    <DropdownMenuItem
+                      key={ide.name}
+                      onClick={() => handleOpenInIDE(ide.name)}
+                    >
+                      Open in {ide.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )
+          )}
+        </div>
       </div>
 
-      {/* Terminal containers */}
-      <div className={`flex-1 min-h-0 flex ${isSplit ? 'flex-row' : ''}`}>
-        <div 
-          ref={terminalRef} 
-          className={`${isSplit ? 'w-1/2 border-r' : 'w-full'} h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
-          style={{ minHeight: '100px' }}
-        />
-        {isSplit && (
-          <div 
-            ref={splitTerminalRef} 
-            className={`w-1/2 h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
-            style={{ minHeight: '100px' }}
-          />
-        )}
-      </div>
+      {/* Terminal container */}
+      <div 
+        ref={terminalRef} 
+        className={`flex-1 h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
+        style={{ minHeight: '100px' }}
+      />
     </div>
   );
 }

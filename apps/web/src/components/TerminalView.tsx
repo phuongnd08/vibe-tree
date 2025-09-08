@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@vibetree/ui';
 import { useAppStore } from '../store';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { ChevronLeft, Maximize2, Minimize2, Columns2, X } from 'lucide-react';
+import { ChevronLeft, Maximize2, Minimize2 } from 'lucide-react';
 import type { Terminal as XTerm } from '@xterm/xterm';
 
 // Cache for terminal states per session ID (like desktop app)
@@ -26,15 +26,10 @@ export function TerminalView({ worktreePath }: TerminalViewProps) {
   const selectedWorktree = worktreePath;
   const { getAdapter } = useWebSocket();
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [splitSessionId, setSplitSessionId] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isSplit, setIsSplit] = useState(false);
   const terminalRef = useRef<XTerm | null>(null);
-  const splitTerminalRef = useRef<XTerm | null>(null);
   const cleanupRef = useRef<(() => void)[]>([]);
-  const splitCleanupRef = useRef<(() => void)[]>([]);
   const saveIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const splitSaveIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!selectedWorktree) {
