@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
+import { useXTerm } from 'react-xtermjs';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Code2 } from 'lucide-react';
@@ -20,8 +20,7 @@ interface ClaudeTerminalProps {
 const terminalStateCache = new Map<string, string>();
 
 export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalProps) {
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const [terminal, setTerminal] = useState<Terminal | null>(null);
+  const { instance: terminal, ref: terminalRef } = useXTerm();
   const processIdRef = useRef<string>('');
   const fitAddonRef = useRef<FitAddon | null>(null);
   const serializeAddonRef = useRef<SerializeAddon | null>(null);
@@ -29,108 +28,98 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
   const [detectedIDEs, setDetectedIDEs] = useState<Array<{ name: string; command: string }>>([]);
   const { toast } = useToast();
 
+  // Get terminal color theme based on light/dark mode
+  const getTerminalTheme = (currentTheme: 'light' | 'dark') => {
+    if (currentTheme === 'light') {
+      return {
+        background: '#ffffff',
+        foreground: '#000000',
+        cursor: '#000000',
+        cursorAccent: '#ffffff',
+        selectionBackground: '#b5b5b5',
+        black: '#000000',
+        red: '#cd3131',
+        green: '#0dbc79',
+        yellow: '#e5e510',
+        blue: '#2472c8',
+        magenta: '#bc3fbc',
+        cyan: '#11a8cd',
+        white: '#e5e5e5',
+        brightBlack: '#666666',
+        brightRed: '#f14c4c',
+        brightGreen: '#23d18b',
+        brightYellow: '#f5f543',
+        brightBlue: '#3b8eea',
+        brightMagenta: '#d670d6',
+        brightCyan: '#29b8db',
+        brightWhite: '#e5e5e5'
+      };
+    } else {
+      return {
+        background: '#000000',
+        foreground: '#ffffff',
+        cursor: '#ffffff',
+        cursorAccent: '#000000',
+        selectionBackground: '#4a4a4a',
+        black: '#000000',
+        red: '#cd3131',
+        green: '#0dbc79',
+        yellow: '#e5e510',
+        blue: '#2472c8',
+        magenta: '#bc3fbc',
+        cyan: '#11a8cd',
+        white: '#e5e5e5',
+        brightBlack: '#666666',
+        brightRed: '#f14c4c',
+        brightGreen: '#23d18b',
+        brightYellow: '#f5f543',
+        brightBlue: '#3b8eea',
+        brightMagenta: '#d670d6',
+        brightCyan: '#29b8db',
+        brightWhite: '#e5e5e5'
+      };
+    }
+  };
+
+  // Initialize terminal addons and configuration
   useEffect(() => {
-    if (!terminalRef.current) return;
+    if (!terminal) return;
 
-    console.log('Initializing terminal...');
+    console.log('Initializing terminal addons...');
 
-    // Create terminal instance with theme-aware colors
-    const getTerminalTheme = (currentTheme: 'light' | 'dark') => {
-      if (currentTheme === 'light') {
-        return {
-          background: '#ffffff',
-          foreground: '#000000',
-          cursor: '#000000',
-          cursorAccent: '#ffffff',
-          selectionBackground: '#b5b5b5',
-          black: '#000000',
-          red: '#cd3131',
-          green: '#0dbc79',
-          yellow: '#e5e510',
-          blue: '#2472c8',
-          magenta: '#bc3fbc',
-          cyan: '#11a8cd',
-          white: '#e5e5e5',
-          brightBlack: '#666666',
-          brightRed: '#f14c4c',
-          brightGreen: '#23d18b',
-          brightYellow: '#f5f543',
-          brightBlue: '#3b8eea',
-          brightMagenta: '#d670d6',
-          brightCyan: '#29b8db',
-          brightWhite: '#e5e5e5'
-        };
-      } else {
-        return {
-          background: '#000000',
-          foreground: '#ffffff',
-          cursor: '#ffffff',
-          cursorAccent: '#000000',
-          selectionBackground: '#4a4a4a',
-          black: '#000000',
-          red: '#cd3131',
-          green: '#0dbc79',
-          yellow: '#e5e510',
-          blue: '#2472c8',
-          magenta: '#bc3fbc',
-          cyan: '#11a8cd',
-          white: '#e5e5e5',
-          brightBlack: '#666666',
-          brightRed: '#f14c4c',
-          brightGreen: '#23d18b',
-          brightYellow: '#f5f543',
-          brightBlue: '#3b8eea',
-          brightMagenta: '#d670d6',
-          brightCyan: '#29b8db',
-          brightWhite: '#e5e5e5'
-        };
-      }
-    };
-
-    const term = new Terminal({
-      theme: getTerminalTheme(theme),
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      fontSize: 14,
-      lineHeight: 1.2,
-      cursorBlink: true,
-      allowTransparency: false,
-      convertEol: true,
-      scrollback: 10000,
-      tabStopWidth: 4,
-      // Handle screen clearing properly
-      windowsMode: false,
-      // Allow proposed API for Unicode11 addon
-      allowProposedApi: true,
-      // Enable Option key as Meta on macOS
-      macOptionIsMeta: true
-    });
+    // Configure terminal options
+    terminal.options.theme = getTerminalTheme(theme);
+    terminal.options.fontFamily = 'Menlo, Monaco, "Courier New", monospace';
+    terminal.options.fontSize = 14;
+    terminal.options.lineHeight = 1.2;
+    terminal.options.cursorBlink = true;
+    terminal.options.allowTransparency = false;
+    terminal.options.convertEol = true;
+    terminal.options.scrollback = 10000;
+    terminal.options.tabStopWidth = 4;
+    terminal.options.windowsMode = false;
+    terminal.options.allowProposedApi = true;
+    terminal.options.macOptionIsMeta = true;
 
     // Add addons
     const fitAddon = new FitAddon();
     fitAddonRef.current = fitAddon;
+    terminal.loadAddon(fitAddon);
     
     // Configure WebLinksAddon with custom handler for opening links
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
       // Open in default browser using Electron's shell.openExternal
       window.electronAPI.shell.openExternal(uri);
     });
-    term.loadAddon(webLinksAddon);
+    terminal.loadAddon(webLinksAddon);
     
     const serializeAddon = new SerializeAddon();
     serializeAddonRef.current = serializeAddon;
-    term.loadAddon(serializeAddon);
+    terminal.loadAddon(serializeAddon);
     
     const unicode11Addon = new Unicode11Addon();
-    term.loadAddon(unicode11Addon);
-
-    // Open terminal in container
-    term.open(terminalRef.current);
-    
-    // Load fit addon after terminal is opened
-    term.loadAddon(fitAddon);
-    
-    // Activate unicode addon
-    unicode11Addon.activate(term);
+    terminal.loadAddon(unicode11Addon);
+    unicode11Addon.activate(terminal);
     
     // Fit and focus after a small delay to ensure proper rendering
     setTimeout(() => {
@@ -139,21 +128,19 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
         if (terminalRef.current && terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
           fitAddon.fit();
         }
-        term.focus();
+        terminal.focus();
       } catch (err) {
         console.error('Error during initial fit:', err);
         // Try to focus without fit
-        term.focus();
+        terminal.focus();
       }
     }, 100);
 
-    setTerminal(term);
-
     // Handle bell character - play sound when bell is triggered
-    const bellDisposable = term.onBell(() => {
+    const bellDisposable = terminal.onBell(() => {
       console.log('Bell triggered in ClaudeTerminal!');
       // Create an audio element and play the bell sound
-      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhCSuBzvLZijYIG2m98OGiUSATVqzn77FgGwc4k9n1znksBSh+zPLaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSN3yfDTgDAJInfN9NuLOgoUYrfp56ZSFApGn+DyvmwhCSuBzvLZijYIG2m98OGiUSATVqzn77FgGwc4k9n1znksBSh+zPLaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQ==');
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhCSuBzvLZijYIG2m98OGiUSATVqzn77FgGwc4k9n1znksBSh+zPLaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSN3yfDTgDAJInfN9NuLOgoUYrfp56ZSFApGn+DyvmwhCSuBzvLZijYIG2m98OGiUSATVqzn77FgGwc4k9n1znksBSh+zPLaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQU2ktXwy3YqBSh+zPDaizsIGWi58OKjTQ8NTqbi78BkHQ==');
       audio.volume = 0.5; // Set volume to 50%
       console.log('Playing bell sound at 50% volume...');
       audio.play()
@@ -175,8 +162,8 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
           if (processIdRef.current) {
             window.electronAPI.shell.resize(
               processIdRef.current, 
-              term.cols, 
-              term.rows
+              terminal.cols, 
+              terminal.rows
             );
           }
         } catch (err) {
@@ -193,9 +180,8 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
       removeListenersRef.current.forEach(remove => remove());
       removeListenersRef.current = [];
       bellDisposable.dispose();
-      term.dispose();
     };
-  }, [theme]);
+  }, [terminal, theme]);
 
   // Save terminal state before unmounting or changing worktree
   useEffect(() => {
@@ -207,7 +193,6 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
       }
     };
   }, [terminal, worktreePath]);
-
 
   // Auto-start shell when worktree changes
   useEffect(() => {
@@ -369,27 +354,6 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
   // Update theme when prop changes
   useEffect(() => {
     if (!terminal) return;
-
-    const getTerminalTheme = (currentTheme: 'light' | 'dark') => {
-      if (currentTheme === 'light') {
-        return {
-          background: '#ffffff',
-          foreground: '#000000',
-          cursor: '#000000',
-          cursorAccent: '#ffffff',
-          selectionBackground: '#b5b5b5'
-        };
-      } else {
-        return {
-          background: '#000000',
-          foreground: '#ffffff',
-          cursor: '#ffffff',
-          cursorAccent: '#000000',
-          selectionBackground: '#4a4a4a'
-        };
-      }
-    };
-
     terminal.options.theme = getTerminalTheme(theme);
   }, [terminal, theme]);
 
@@ -411,9 +375,6 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
       });
     }
   };
-
-
-
 
   return (
     <div className="flex-1 flex flex-col h-full">
@@ -459,7 +420,7 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
 
       {/* Terminal container */}
       <div 
-        ref={terminalRef} 
+        ref={terminalRef as React.RefObject<HTMLDivElement>} 
         className={`flex-1 h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
         style={{ minHeight: '100px' }}
       />
