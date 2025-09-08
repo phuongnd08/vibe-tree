@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { SerializeAddon } from '@xterm/addon-serialize';
@@ -20,7 +20,6 @@ interface ClaudeTerminalProps {
 const terminalStateCache = new Map<string, string>();
 
 export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalProps) {
-  const { instance: terminal, ref: terminalRef } = useXTerm();
   const processIdRef = useRef<string>('');
   const fitAddonRef = useRef<FitAddon | null>(null);
   const serializeAddonRef = useRef<SerializeAddon | null>(null);
@@ -81,25 +80,32 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark' }: ClaudeTerminalP
     }
   };
 
+  // Terminal options configuration
+  const terminalOptions = useMemo(() => ({
+    theme: getTerminalTheme(theme),
+    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+    fontSize: 14,
+    lineHeight: 1.2,
+    cursorBlink: true,
+    allowTransparency: false,
+    convertEol: true,
+    scrollback: 10000,
+    tabStopWidth: 4,
+    windowsMode: false,
+    allowProposedApi: true,
+    macOptionIsMeta: true
+  }), [theme]);
+
+  // Initialize useXTerm with terminal options
+  const { instance: terminal, ref: terminalRef } = useXTerm({
+    options: terminalOptions
+  });
+
   // Initialize terminal addons and configuration
   useEffect(() => {
     if (!terminal) return;
 
     console.log('Initializing terminal addons...');
-
-    // Configure terminal options
-    terminal.options.theme = getTerminalTheme(theme);
-    terminal.options.fontFamily = 'Menlo, Monaco, "Courier New", monospace';
-    terminal.options.fontSize = 14;
-    terminal.options.lineHeight = 1.2;
-    terminal.options.cursorBlink = true;
-    terminal.options.allowTransparency = false;
-    terminal.options.convertEol = true;
-    terminal.options.scrollback = 10000;
-    terminal.options.tabStopWidth = 4;
-    terminal.options.windowsMode = false;
-    terminal.options.allowProposedApi = true;
-    terminal.options.macOptionIsMeta = true;
 
     // Add addons
     const fitAddon = new FitAddon();
