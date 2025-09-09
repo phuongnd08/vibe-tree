@@ -20,7 +20,6 @@ interface ClaudeTerminalProps {
   onClose?: () => void;
   canClose?: boolean;
   onProcessIdChange?: (processId: string) => void;
-  isClosing?: boolean;
 }
 
 // Cache for terminal states per worktree
@@ -34,8 +33,7 @@ export function ClaudeTerminal({
   onSplit,
   onClose,
   canClose = false,
-  onProcessIdChange,
-  isClosing = false
+  onProcessIdChange
 }: ClaudeTerminalProps) {
   // Log when component renders to verify it only happens once per terminal
   console.log(`[ClaudeTerminal] Rendering terminal for: ${worktreePath}`);

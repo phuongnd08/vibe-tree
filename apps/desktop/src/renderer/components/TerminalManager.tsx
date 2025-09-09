@@ -23,9 +23,6 @@ interface WorktreeTerminals {
 // Global cache for terminal portals - persists across component re-renders
 const worktreeTerminalsCache = new Map<string, WorktreeTerminals>();
 
-// Track terminals that are being closed to handle cleanup properly
-const closingTerminals = new Set<string>();
-
 export function TerminalManager({ worktreePath, projectId, theme }: TerminalManagerProps) {
   const [worktreeTerminals, setWorktreeTerminals] = useState<Map<string, WorktreeTerminals>>(worktreeTerminalsCache);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -94,9 +91,6 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
 
     console.log('Closing terminal:', terminalId);
     
-    // Mark terminal as closing
-    closingTerminals.add(terminalId);
-    
     // Get the process ID for this terminal if it exists
     const processId = terminalProcessIds.current.get(terminalId);
     if (processId) {
@@ -111,9 +105,6 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
     
     // Remove the terminal from the list
     worktreeData.terminals = worktreeData.terminals.filter(t => t.id !== terminalId);
-    
-    // Remove from closing set
-    closingTerminals.delete(terminalId);
     
     // Update state to trigger re-render
     setWorktreeTerminals(new Map(worktreeTerminalsCache));
@@ -156,7 +147,6 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
             onClose={() => handleClose(terminal.id)}
             canClose={currentTerminals.length > 1}
             onProcessIdChange={(processId) => handleTerminalProcessId(terminal.id, processId)}
-            isClosing={closingTerminals.has(terminal.id)}
           />
         </InPortal>
       ))}
