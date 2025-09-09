@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { createHtmlPortalNode, InPortal, OutPortal, HtmlPortalNode } from 'react-reverse-portal';
 import { ClaudeTerminal } from './ClaudeTerminal';
 
@@ -8,70 +8,141 @@ interface TerminalManagerProps {
   theme?: 'light' | 'dark';
 }
 
-interface TerminalPortal {
+interface TerminalInstance {
+  id: string;
   worktreePath: string;
   portalNode: HtmlPortalNode;
 }
 
+interface WorktreeTerminals {
+  worktreePath: string;
+  terminals: TerminalInstance[];
+}
+
 // Global cache for terminal portals - persists across component re-renders
-const terminalPortalsCache = new Map<string, TerminalPortal>();
+const worktreeTerminalsCache = new Map<string, WorktreeTerminals>();
 
 export function TerminalManager({ worktreePath, projectId, theme }: TerminalManagerProps) {
-  const [terminalPortals, setTerminalPortals] = useState<Map<string, TerminalPortal>>(terminalPortalsCache);
+  const [worktreeTerminals, setWorktreeTerminals] = useState<Map<string, WorktreeTerminals>>(worktreeTerminalsCache);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Create or get portal for current worktree
+  // Create or get terminals for current worktree
   useEffect(() => {
-    if (!terminalPortalsCache.has(worktreePath)) {
-      console.log('Creating new terminal portal for:', worktreePath);
+    if (!worktreeTerminalsCache.has(worktreePath)) {
+      console.log('Creating initial terminal for:', worktreePath);
       
-      // Create a new portal node for this worktree
+      // Create a new terminal instance for this worktree
+      const terminalId = `${worktreePath}-${Date.now()}`;
       const portalNode = createHtmlPortalNode();
-      const portal: TerminalPortal = {
+      const terminal: TerminalInstance = {
+        id: terminalId,
         worktreePath,
         portalNode
       };
       
+      const worktreeData: WorktreeTerminals = {
+        worktreePath,
+        terminals: [terminal]
+      };
+      
       // Add to global cache
-      terminalPortalsCache.set(worktreePath, portal);
+      worktreeTerminalsCache.set(worktreePath, worktreeData);
       
       // Update state to trigger re-render
-      setTerminalPortals(new Map(terminalPortalsCache));
+      setWorktreeTerminals(new Map(worktreeTerminalsCache));
     }
   }, [worktreePath]);
 
-  // Get all terminal portals that have been created
-  const allPortals = useMemo(() => Array.from(terminalPortals.values()), [terminalPortals]);
+  // Handle terminal split
+  const handleSplit = useCallback((existingTerminalId: string) => {
+    const worktreeData = worktreeTerminalsCache.get(worktreePath);
+    if (!worktreeData) return;
+
+    console.log('Splitting terminal:', existingTerminalId);
+    
+    // Create a new terminal instance
+    const newTerminalId = `${worktreePath}-${Date.now()}`;
+    const portalNode = createHtmlPortalNode();
+    const newTerminal: TerminalInstance = {
+      id: newTerminalId,
+      worktreePath,
+      portalNode
+    };
+    
+    // Add the new terminal to the list
+    worktreeData.terminals.push(newTerminal);
+    
+    // Update state to trigger re-render
+    setWorktreeTerminals(new Map(worktreeTerminalsCache));
+  }, [worktreePath]);
+
+  // Handle terminal close
+  const handleClose = useCallback((terminalId: string) => {
+    const worktreeData = worktreeTerminalsCache.get(worktreePath);
+    if (!worktreeData) return;
+
+    // Don't allow closing if it's the last terminal
+    if (worktreeData.terminals.length <= 1) {
+      console.log('Cannot close the last terminal');
+      return;
+    }
+
+    console.log('Closing terminal:', terminalId);
+    
+    // Remove the terminal from the list
+    worktreeData.terminals = worktreeData.terminals.filter(t => t.id !== terminalId);
+    
+    // Update state to trigger re-render
+    setWorktreeTerminals(new Map(worktreeTerminalsCache));
+  }, [worktreePath]);
+
+  // Get current worktree's terminals
+  const currentTerminals = useMemo(() => {
+    const worktreeData = worktreeTerminals.get(worktreePath);
+    return worktreeData?.terminals || [];
+  }, [worktreeTerminals, worktreePath]);
+
+  // Get all terminals from all worktrees for rendering InPortals
+  const allTerminals = useMemo(() => {
+    const terminals: TerminalInstance[] = [];
+    worktreeTerminals.forEach(worktreeData => {
+      terminals.push(...worktreeData.terminals);
+    });
+    return terminals;
+  }, [worktreeTerminals]);
 
   return (
     <div ref={containerRef} className="terminal-manager-root flex-1 h-full relative">
       {/* Render all terminals into their portals (this happens once per terminal) */}
-      {allPortals.map((portal) => (
-        <InPortal key={portal.worktreePath} node={portal.portalNode}>
+      {allTerminals.map((terminal) => (
+        <InPortal key={terminal.id} node={terminal.portalNode}>
           <ClaudeTerminal
-            worktreePath={portal.worktreePath}
+            worktreePath={terminal.worktreePath}
             projectId={projectId}
             theme={theme}
-            isVisible={portal.worktreePath === worktreePath}
+            terminalId={terminal.id}
+            isVisible={currentTerminals.some(t => t.id === terminal.id)}
+            onSplit={() => handleSplit(terminal.id)}
+            onClose={() => handleClose(terminal.id)}
+            canClose={currentTerminals.length > 1}
           />
         </InPortal>
       ))}
       
-      {/* Show only the current worktree's terminal via OutPortal */}
-      {allPortals.map((portal) => (
-        <div
-          key={`out-${portal.worktreePath}`}
-          className="terminal-outportal-wrapper absolute inset-0 w-full h-full"
-          style={{
-            display: portal.worktreePath === worktreePath ? 'block' : 'none',
-            visibility: portal.worktreePath === worktreePath ? 'visible' : 'hidden'
-          }}
-        >
-          {portal.worktreePath === worktreePath && (
-            <OutPortal node={portal.portalNode} />
-          )}
-        </div>
-      ))}
+      {/* Show the current worktree's terminals in a split layout */}
+      <div className="flex h-full">
+        {currentTerminals.map((terminal, index) => (
+          <div
+            key={`out-${terminal.id}`}
+            className="terminal-outportal-wrapper flex-1 h-full relative"
+            style={{
+              borderRight: index < currentTerminals.length - 1 ? '1px solid var(--border)' : 'none'
+            }}
+          >
+            <OutPortal node={terminal.portalNode} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

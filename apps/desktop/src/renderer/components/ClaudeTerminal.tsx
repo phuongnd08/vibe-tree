@@ -6,7 +6,7 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { Code2 } from 'lucide-react';
+import { Code2, Columns2, X } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import '@xterm/xterm/css/xterm.css';
 
@@ -15,12 +15,24 @@ interface ClaudeTerminalProps {
   projectId?: string;
   theme?: 'light' | 'dark';
   isVisible?: boolean;
+  terminalId?: string;
+  onSplit?: () => void;
+  onClose?: () => void;
+  canClose?: boolean;
 }
 
 // Cache for terminal states per worktree
 const terminalStateCache = new Map<string, string>();
 
-export function ClaudeTerminal({ worktreePath, theme = 'dark', isVisible = true }: ClaudeTerminalProps) {
+export function ClaudeTerminal({ 
+  worktreePath, 
+  theme = 'dark', 
+  isVisible = true, 
+  terminalId,
+  onSplit,
+  onClose,
+  canClose = false
+}: ClaudeTerminalProps) {
   // Log when component renders to verify it only happens once per terminal
   console.log(`[ClaudeTerminal] Rendering terminal for: ${worktreePath}`);
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -213,6 +225,17 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark', isVisible = true 
   }, [terminal, worktreePath]);
 
 
+  // Handle terminal cleanup when the component is unmounted or closed
+  useEffect(() => {
+    return () => {
+      // When the terminal is being closed/unmounted, terminate the PTY session
+      if (processIdRef.current && onClose) {
+        console.log(`[ClaudeTerminal] Terminating PTY session: ${processIdRef.current}`);
+        window.electronAPI.shell.terminate(processIdRef.current);
+      }
+    };
+  }, [onClose]);
+
   // Auto-start shell when worktree changes
   useEffect(() => {
     if (!terminal || !worktreePath) return;
@@ -227,7 +250,7 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark', isVisible = true 
         const cols = terminal.cols;
         const rows = terminal.rows;
         
-        const result = await window.electronAPI.shell.start(worktreePath, cols, rows);
+        const result = await window.electronAPI.shell.start(worktreePath, cols, rows, false, terminalId);
         
         if (!result.success) {
           terminal.writeln(`\r\nError: ${result.error || 'Failed to start shell'}\r\n`);
@@ -454,6 +477,26 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark', isVisible = true 
           <p className="text-xs text-muted-foreground truncate">{worktreePath}</p>
         </div>
         <div className="flex items-center gap-1">
+          {onSplit && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onSplit}
+              title="Split Terminal Vertically"
+            >
+              <Columns2 className="h-4 w-4" />
+            </Button>
+          )}
+          {canClose && onClose && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onClose}
+              title="Close Terminal"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
           {detectedIDEs.length > 0 && (
             detectedIDEs.length === 1 ? (
               <Button

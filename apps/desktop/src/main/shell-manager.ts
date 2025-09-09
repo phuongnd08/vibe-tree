@@ -110,6 +110,11 @@ class DesktopShellManager {
       // Buffer management handled on renderer side
       return { success: true, buffer: null };
     });
+
+    ipcMain.handle('shell:terminate', async (_, processId: string) => {
+      const success = this.sessionManager.terminateSession(processId);
+      return { success };
+    });
   }
 
   // Clean up on app quit
