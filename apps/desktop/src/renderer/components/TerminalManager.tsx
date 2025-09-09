@@ -44,7 +44,6 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
       type: 'terminal',
       portalNode
     };
-    
     return { terminal, node };
   }, []);
 
@@ -62,6 +61,11 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
       
       worktreeTerminalsCache.set(worktreePath, worktreeData);
       setWorktreeTerminals(new Map(worktreeTerminalsCache));
+      
+      // Force a resize event after a short delay to ensure DOM is updated
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 50);
     }
   }, [worktreePath, createTerminalNode]);
 
@@ -150,6 +154,11 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
     }
     
     setWorktreeTerminals(new Map(worktreeTerminalsCache));
+    
+    // Force a resize event after a short delay to ensure DOM is updated
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 50);
   }, [worktreePath, createTerminalNode]);
 
   const removeNodeFromTree = (node: SplitNode, targetId: string): SplitNode | null => {
@@ -242,6 +251,34 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
     return countTerminals(currentWorktreeData.rootNode) > 1;
   }, [currentWorktreeData]);
 
+  // Watch for DOM changes and trigger resize when terminals are added/removed
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Create a MutationObserver to watch for DOM changes
+    const observer = new MutationObserver((mutations) => {
+      // Check if any terminals were added or removed
+      const hasStructuralChange = mutations.some(mutation => 
+        mutation.type === 'childList' && 
+        (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)
+      );
+
+      if (hasStructuralChange) {
+        // Trigger a resize event to ensure all terminals fit properly
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+        }, 100);
+      }
+    });
+
+    // Start observing the container for child changes
+    observer.observe(containerRef.current, {
+      childList: true,
+      subtree: true
+    });
+
+    return () => observer.disconnect();
+  }, []);
   return (
     <div ref={containerRef} className="terminal-manager-root flex-1 h-full relative">
       {allTerminals.map((terminal) => (
