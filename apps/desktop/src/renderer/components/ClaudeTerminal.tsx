@@ -38,7 +38,14 @@ export function ClaudeTerminal({
   onProcessIdChange
 }: ClaudeTerminalProps) {
   // Log when component renders to verify it only happens once per terminal
-  console.log(`[ClaudeTerminal] Rendering terminal for: ${worktreePath}`);
+  console.log(`[ClaudeTerminal] Rendering terminal for: ${worktreePath}`, {
+    terminalId,
+    canClose,
+    hasOnClose: !!onClose,
+    hasOnSplitVertical: !!onSplitVertical,
+    hasOnSplitHorizontal: !!onSplitHorizontal,
+    isVisible
+  });
   const terminalRef = useRef<HTMLDivElement>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const processIdRef = useRef<string>('');

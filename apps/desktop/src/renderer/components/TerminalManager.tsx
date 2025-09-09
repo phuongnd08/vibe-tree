@@ -248,7 +248,10 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
 
   const canClose = useMemo(() => {
     if (!currentWorktreeData) return false;
-    return countTerminals(currentWorktreeData.rootNode) > 1;
+    const terminalCount = countTerminals(currentWorktreeData.rootNode);
+    console.log('[TerminalManager] Terminal count:', terminalCount, 'canClose:', terminalCount > 1);
+    console.log('[TerminalManager] Root node structure:', currentWorktreeData.rootNode);
+    return terminalCount > 1;
   }, [currentWorktreeData]);
 
   // Watch for DOM changes and trigger resize when terminals are added/removed
