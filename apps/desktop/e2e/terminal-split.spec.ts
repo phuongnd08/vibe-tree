@@ -250,4 +250,206 @@ test.describe('Terminal Split Feature', () => {
     secondContent = await secondTerminalScreen.textContent();
     expect(secondContent).not.toContain('First Terminal');
   });
+
+  test('should support infinite splits', async () => {
+    test.setTimeout(60000);
+
+    await page.waitForLoadState('domcontentloaded');
+
+    // Setup and navigate to terminal
+    await expect(page.locator('h2', { hasText: 'Select a Project' })).toBeVisible({ timeout: 10000 });
+    const openButton = page.locator('button', { hasText: 'Open Project Folder' });
+    await expect(openButton).toBeVisible();
+
+    await electronApp.evaluate(async ({ dialog }, repoPath) => {
+      dialog.showOpenDialog = async () => {
+        return {
+          canceled: false,
+          filePaths: [repoPath]
+        };
+      };
+    }, dummyRepoPath);
+
+    await openButton.click();
+    await page.waitForTimeout(3000);
+
+    const worktreeButton = page.locator('button[data-worktree-branch="main"]');
+    await worktreeButton.click();
+    await page.waitForTimeout(3000);
+
+    // Start with 1 terminal
+    let terminalCount = await page.locator('.claude-terminal-root').count();
+    expect(terminalCount).toBe(1);
+
+    // Perform multiple splits to test infinite split capability
+    // Split 1: Vertical split
+    let splitVertButton = page.locator('button[title="Split Terminal Vertically"]').first();
+    await splitVertButton.click();
+    await page.waitForTimeout(1000);
+    terminalCount = await page.locator('.claude-terminal-root').count();
+    expect(terminalCount).toBe(2);
+
+    // Split 2: Horizontal split on first terminal
+    let splitHorizButton = page.locator('button[title="Split Terminal Horizontally"]').first();
+    await splitHorizButton.click();
+    await page.waitForTimeout(1000);
+    terminalCount = await page.locator('.claude-terminal-root').count();
+    expect(terminalCount).toBe(3);
+
+    // Split 3: Vertical split on second terminal
+    splitVertButton = page.locator('button[title="Split Terminal Vertically"]').nth(1);
+    await splitVertButton.click();
+    await page.waitForTimeout(1000);
+    terminalCount = await page.locator('.claude-terminal-root').count();
+    expect(terminalCount).toBe(4);
+
+    // Split 4: Horizontal split on third terminal
+    splitHorizButton = page.locator('button[title="Split Terminal Horizontally"]').nth(2);
+    await splitHorizButton.click();
+    await page.waitForTimeout(1000);
+    terminalCount = await page.locator('.claude-terminal-root').count();
+    expect(terminalCount).toBe(5);
+
+    // Split 5: One more split to demonstrate infinite capability
+    splitVertButton = page.locator('button[title="Split Terminal Vertically"]').nth(3);
+    await splitVertButton.click();
+    await page.waitForTimeout(1000);
+    terminalCount = await page.locator('.claude-terminal-root').count();
+    expect(terminalCount).toBe(6);
+
+    // Verify all terminals are visible
+    const terminals = page.locator('.claude-terminal-root');
+    for (let i = 0; i < 6; i++) {
+      await expect(terminals.nth(i)).toBeVisible();
+    }
+  });
+
+  test('horizontal splits should take 50% height of parent', async () => {
+    test.setTimeout(60000);
+
+    await page.waitForLoadState('domcontentloaded');
+
+    // Setup and navigate to terminal
+    await expect(page.locator('h2', { hasText: 'Select a Project' })).toBeVisible({ timeout: 10000 });
+    const openButton = page.locator('button', { hasText: 'Open Project Folder' });
+    await expect(openButton).toBeVisible();
+
+    await electronApp.evaluate(async ({ dialog }, repoPath) => {
+      dialog.showOpenDialog = async () => {
+        return {
+          canceled: false,
+          filePaths: [repoPath]
+        };
+      };
+    }, dummyRepoPath);
+
+    await openButton.click();
+    await page.waitForTimeout(3000);
+
+    const worktreeButton = page.locator('button[data-worktree-branch="main"]');
+    await worktreeButton.click();
+    await page.waitForTimeout(3000);
+
+    // Get the parent container dimensions
+    const parentContainer = page.locator('.split-layout-container, .terminal-manager-root').first();
+    const parentBox = await parentContainer.boundingBox();
+    expect(parentBox).not.toBeNull();
+
+    // Perform a horizontal split
+    const splitHorizButton = page.locator('button[title="Split Terminal Horizontally"]').first();
+    await splitHorizButton.click();
+    await page.waitForTimeout(2000);
+
+    // Get the terminal containers after split
+    const terminalContainers = page.locator('.claude-terminal-root');
+    const count = await terminalContainers.count();
+    expect(count).toBe(2);
+
+    // Get bounding boxes for both terminals
+    const firstTerminalBox = await terminalContainers.nth(0).boundingBox();
+    const secondTerminalBox = await terminalContainers.nth(1).boundingBox();
+
+    expect(firstTerminalBox).not.toBeNull();
+    expect(secondTerminalBox).not.toBeNull();
+
+    // Calculate expected height (50% of parent minus some tolerance for borders/gaps)
+    const expectedHeight = parentBox!.height / 2;
+    const tolerance = 20; // Allow 20px tolerance for borders, gaps, etc.
+
+    // Verify each terminal takes approximately 50% of the parent height
+    expect(Math.abs(firstTerminalBox!.height - expectedHeight)).toBeLessThan(tolerance);
+    expect(Math.abs(secondTerminalBox!.height - expectedHeight)).toBeLessThan(tolerance);
+
+    // Verify terminals are stacked vertically
+    expect(secondTerminalBox!.y).toBeGreaterThan(firstTerminalBox!.y);
+    
+    // Verify terminals have the same width
+    expect(Math.abs(firstTerminalBox!.width - secondTerminalBox!.width)).toBeLessThan(5);
+  });
+
+  test('nested horizontal splits should maintain 50% height distribution', async () => {
+    test.setTimeout(60000);
+
+    await page.waitForLoadState('domcontentloaded');
+
+    // Setup and navigate to terminal
+    await expect(page.locator('h2', { hasText: 'Select a Project' })).toBeVisible({ timeout: 10000 });
+    const openButton = page.locator('button', { hasText: 'Open Project Folder' });
+    await expect(openButton).toBeVisible();
+
+    await electronApp.evaluate(async ({ dialog }, repoPath) => {
+      dialog.showOpenDialog = async () => {
+        return {
+          canceled: false,
+          filePaths: [repoPath]
+        };
+      };
+    }, dummyRepoPath);
+
+    await openButton.click();
+    await page.waitForTimeout(3000);
+
+    const worktreeButton = page.locator('button[data-worktree-branch="main"]');
+    await worktreeButton.click();
+    await page.waitForTimeout(3000);
+
+    // First horizontal split
+    let splitHorizButton = page.locator('button[title="Split Terminal Horizontally"]').first();
+    await splitHorizButton.click();
+    await page.waitForTimeout(2000);
+
+    // Split the bottom terminal horizontally again
+    splitHorizButton = page.locator('button[title="Split Terminal Horizontally"]').nth(1);
+    await splitHorizButton.click();
+    await page.waitForTimeout(2000);
+
+    // Now we should have 3 terminals in a horizontal layout
+    const terminalContainers = page.locator('.claude-terminal-root');
+    const count = await terminalContainers.count();
+    expect(count).toBe(3);
+
+    // Get the parent container dimensions
+    const parentContainer = page.locator('.split-layout-container, .terminal-manager-root').first();
+    const parentBox = await parentContainer.boundingBox();
+    expect(parentBox).not.toBeNull();
+
+    // Get bounding boxes for all terminals
+    const firstTerminalBox = await terminalContainers.nth(0).boundingBox();
+    const secondTerminalBox = await terminalContainers.nth(1).boundingBox();
+    const thirdTerminalBox = await terminalContainers.nth(2).boundingBox();
+
+    expect(firstTerminalBox).not.toBeNull();
+    expect(secondTerminalBox).not.toBeNull();
+    expect(thirdTerminalBox).not.toBeNull();
+
+    const tolerance = 20;
+
+    // First terminal should take 50% of parent height
+    expect(Math.abs(firstTerminalBox!.height - parentBox!.height / 2)).toBeLessThan(tolerance);
+
+    // Second and third terminals should each take 25% of parent height (50% of the bottom half)
+    const expectedBottomHeight = parentBox!.height / 4;
+    expect(Math.abs(secondTerminalBox!.height - expectedBottomHeight)).toBeLessThan(tolerance);
+    expect(Math.abs(thirdTerminalBox!.height - expectedBottomHeight)).toBeLessThan(tolerance);
+  });
 });
