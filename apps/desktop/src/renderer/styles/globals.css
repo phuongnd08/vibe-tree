@@ -58,3 +58,9 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   }
 }
+
+/* Fix for OutPortal generated div - target direct child of terminal-outportal-wrapper */
+.terminal-outportal-wrapper > div {
+  display: flex;
+  height: 100%;
+}

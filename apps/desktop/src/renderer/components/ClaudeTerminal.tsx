@@ -446,9 +446,9 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark', isVisible = true 
 
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="claude-terminal-root flex-1 flex flex-col h-full">
       {/* Header */}
-      <div className="h-[57px] px-4 border-b flex items-center justify-between flex-shrink-0">
+      <div className="terminal-header h-[57px] px-4 border-b flex items-center justify-between flex-shrink-0">
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold">Terminal</h3>
           <p className="text-xs text-muted-foreground truncate">{worktreePath}</p>
@@ -490,7 +490,7 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark', isVisible = true 
       {/* Terminal container */}
       <div 
         ref={terminalRef} 
-        className={`flex-1 h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
+        className={`terminal-xterm-container flex-1 h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
         style={{ minHeight: '100px' }}
       />
     </div>

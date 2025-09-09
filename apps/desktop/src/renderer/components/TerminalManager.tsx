@@ -44,7 +44,7 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
   const allPortals = useMemo(() => Array.from(terminalPortals.values()), [terminalPortals]);
 
   return (
-    <div ref={containerRef} className="flex-1 h-full relative">
+    <div ref={containerRef} className="terminal-manager-root flex-1 h-full relative">
       {/* Render all terminals into their portals (this happens once per terminal) */}
       {allPortals.map((portal) => (
         <InPortal key={portal.worktreePath} node={portal.portalNode}>
@@ -61,7 +61,7 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
       {allPortals.map((portal) => (
         <div
           key={`out-${portal.worktreePath}`}
-          className="absolute inset-0 w-full h-full"
+          className="terminal-outportal-wrapper absolute inset-0 w-full h-full"
           style={{
             display: portal.worktreePath === worktreePath ? 'block' : 'none',
             visibility: portal.worktreePath === worktreePath ? 'visible' : 'hidden'
