@@ -1,5 +1,18 @@
 # Claude Instructions
 
+## Electron App Startup Issues
+
+If the Electron app fails to start with errors like:
+- `icudtl.dat not found in bundle`
+- `Library not loaded: @rpath/Electron Framework.framework/Electron Framework`
+- `Invalid file descriptor to ICU data received`
+
+Run the following command from the project root to fix the Electron installation:
+
+```bash
+pnpm fix:electron
+```
+
 ## E2E Testing
 
 When you need to run, debug, or troubleshoot end-to-end Electron tests, use the `electron-e2e-test-runner` agent. This specialized agent handles:

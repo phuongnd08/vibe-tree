@@ -106,6 +106,32 @@ ipcMain.handle('dialog:select-directory', async () => {
   return result.filePaths[0];
 });
 
+// Programmatic project opening (for testing)
+ipcMain.handle('project:open-path', async (_, projectPath: string) => {
+  if (!projectPath) {
+    return { success: false, error: 'No path provided' };
+  }
+  if (mainWindow && fs.existsSync(projectPath)) {
+    mainWindow.webContents.send('project:open', projectPath);
+    return { success: true, path: projectPath };
+  }
+  return { success: false, error: `Directory does not exist: ${projectPath}` };
+});
+
+// Open current working directory
+ipcMain.handle('project:open-cwd', async () => {
+  try {
+    const cwd = process.cwd();
+    if (mainWindow && fs.existsSync(cwd)) {
+      mainWindow.webContents.send('project:open', cwd);
+      return { success: true, path: cwd };
+    }
+    return { success: false, error: `Directory does not exist: ${cwd}` };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Open external links
 ipcMain.handle('shell:open-external', async (_, url: string) => {
   await shell.openExternal(url);

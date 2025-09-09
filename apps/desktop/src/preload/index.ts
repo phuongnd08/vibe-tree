@@ -55,6 +55,10 @@ const api = {
   dialog: {
     selectDirectory: () => ipcRenderer.invoke('dialog:select-directory')
   },
+  project: {
+    openPath: (projectPath: string) => ipcRenderer.invoke('project:open-path', projectPath),
+    openCwd: () => ipcRenderer.invoke('project:open-cwd')
+  },
   recentProjects: {
     get: () => ipcRenderer.invoke('recent-projects:get'),
     add: (projectPath: string) => ipcRenderer.invoke('recent-projects:add', projectPath),

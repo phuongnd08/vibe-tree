@@ -250,6 +250,16 @@ ipcMain.handle('project:open-path', async (_, projectPath: string) => {
   return { success: false, error: 'Invalid path or window not ready' };
 });
 
+// Open current working directory
+ipcMain.handle('project:open-cwd', async () => {
+  const cwd = process.cwd();
+  if (mainWindow && fs.existsSync(cwd)) {
+    mainWindow.webContents.send('project:open', cwd);
+    return { success: true, path: cwd };
+  }
+  return { success: false, error: 'Window not ready' };
+});
+
 // Open external links
 ipcMain.handle('shell:open-external', async (_, url: string) => {
   await shell.openExternal(url);
