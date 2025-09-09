@@ -76,6 +76,11 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
     
     // Update state to trigger re-render
     setWorktreeTerminals(new Map(worktreeTerminalsCache));
+    
+    // Force a resize event after a short delay to ensure DOM is updated
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 50);
   }, [worktreePath]);
 
   // Handle terminal close
@@ -132,6 +137,35 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
     return terminals;
   }, [worktreeTerminals]);
 
+  // Watch for DOM changes and trigger resize when terminals are added/removed
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Create a MutationObserver to watch for DOM changes
+    const observer = new MutationObserver((mutations) => {
+      // Check if any terminals were added or removed
+      const hasStructuralChange = mutations.some(mutation => 
+        mutation.type === 'childList' && 
+        (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)
+      );
+
+      if (hasStructuralChange) {
+        // Trigger a resize event to ensure all terminals fit properly
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+        }, 100);
+      }
+    });
+
+    // Start observing the container for child changes
+    observer.observe(containerRef.current, {
+      childList: true,
+      subtree: true
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div ref={containerRef} className="terminal-manager-root flex-1 h-full relative">
       {/* Render all terminals into their portals (this happens once per terminal) */}
@@ -156,8 +190,9 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
         {currentTerminals.map((terminal, index) => (
           <div
             key={`out-${terminal.id}`}
-            className="terminal-outportal-wrapper flex-1 h-full relative flex flex-col"
+            className="terminal-outportal-wrapper h-full relative flex flex-col"
             style={{
+              width: `${100 / currentTerminals.length}%`,
               borderRight: index < currentTerminals.length - 1 ? '1px solid var(--border)' : 'none'
             }}
           >

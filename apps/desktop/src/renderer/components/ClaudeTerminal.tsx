@@ -182,7 +182,7 @@ export function ClaudeTerminal({
         });
     });
 
-    // Handle window resize
+    // Handle resize (both window resize and container resize)
     const handleResize = () => {
       // Only fit if the terminal container has dimensions
       if (terminalRef.current && terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
@@ -202,11 +202,27 @@ export function ClaudeTerminal({
       }
     };
 
+    // Listen to window resize
     window.addEventListener('resize', handleResize);
+    
+    // Create ResizeObserver to watch for container size changes (e.g., when splitting terminals)
+    const resizeObserver = new ResizeObserver(() => {
+      // Debounce resize to avoid excessive calls
+      clearTimeout((window as any).resizeDebounceTimer);
+      (window as any).resizeDebounceTimer = setTimeout(() => {
+        handleResize();
+      }, 100);
+    });
+    
+    // Observe the terminal container
+    if (terminalRef.current) {
+      resizeObserver.observe(terminalRef.current);
+    }
 
     return () => {
       console.log(`[ClaudeTerminal] Cleanup for: ${worktreePath}`);
       window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       // Clean up listeners
       removeListenersRef.current.forEach(remove => remove());
       removeListenersRef.current = [];
@@ -410,22 +426,48 @@ export function ClaudeTerminal({
 
     console.log(`[ClaudeTerminal] Terminal visibility changed for ${worktreePath}: ${isVisible}`);
     
-    // Focus the terminal when it becomes visible
-    // Use a small timeout to ensure the DOM is ready
+    // Immediate resize attempt
+    if (fitAddonRef.current && terminalRef.current) {
+      try {
+        if (terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
+          fitAddonRef.current.fit();
+          // Also resize the PTY to match the new terminal dimensions
+          if (processIdRef.current) {
+            window.electronAPI.shell.resize(
+              processIdRef.current,
+              terminal.cols,
+              terminal.rows
+            );
+          }
+        }
+      } catch (err) {
+        console.error('Error fitting terminal on visibility change (immediate):', err);
+      }
+    }
+    
+    // Also do it after a small delay to ensure DOM is fully ready
     const focusTimeout = setTimeout(() => {
       terminal.focus();
       
-      // Also trigger a resize to ensure proper rendering
+      // Retry resize to ensure proper rendering
       if (fitAddonRef.current && terminalRef.current) {
         try {
           if (terminalRef.current.offsetWidth > 0 && terminalRef.current.offsetHeight > 0) {
             fitAddonRef.current.fit();
+            // Also resize the PTY to match the new terminal dimensions
+            if (processIdRef.current) {
+              window.electronAPI.shell.resize(
+                processIdRef.current,
+                terminal.cols,
+                terminal.rows
+              );
+            }
           }
         } catch (err) {
-          console.error('Error fitting terminal on visibility change:', err);
+          console.error('Error fitting terminal on visibility change (delayed):', err);
         }
       }
-    }, 50);
+    }, 100);
 
     return () => clearTimeout(focusTimeout);
   }, [terminal, isVisible]);
