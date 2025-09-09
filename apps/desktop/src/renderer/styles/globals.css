@@ -59,8 +59,9 @@
   }
 }
 
-/* Fix for OutPortal generated div - only apply flex when parent is visible */
-.terminal-outportal-wrapper[style*="display: block"] > div {
+/* Fix for OutPortal generated div */
+.terminal-outportal-wrapper > div {
   display: flex;
   height: 100%;
+  width: 100%;
 }

@@ -166,7 +166,7 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
         {currentTerminals.map((terminal, index) => (
           <div
             key={`out-${terminal.id}`}
-            className="terminal-outportal-wrapper flex-1 h-full relative"
+            className="terminal-outportal-wrapper flex-1 h-full relative flex flex-col"
             style={{
               borderRight: index < currentTerminals.length - 1 ? '1px solid var(--border)' : 'none'
             }}
