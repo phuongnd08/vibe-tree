@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { createHtmlPortalNode, InPortal, OutPortal, HtmlPortalNode } from 'react-reverse-portal';
 import { ClaudeTerminal } from './ClaudeTerminal';
+import { SplitLayout, SplitNode, SplitDirection } from './SplitLayout';
 
 interface TerminalManagerProps {
   worktreePath: string;
@@ -17,10 +18,10 @@ interface TerminalInstance {
 
 interface WorktreeTerminals {
   worktreePath: string;
-  terminals: TerminalInstance[];
+  terminals: Map<string, TerminalInstance>;
+  rootNode: SplitNode;
 }
 
-// Global cache for terminal portals - persists across component re-renders
 const worktreeTerminalsCache = new Map<string, WorktreeTerminals>();
 
 export function TerminalManager({ worktreePath, projectId, theme }: TerminalManagerProps) {
@@ -28,70 +29,163 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalProcessIds = useRef<Map<string, string>>(new Map());
 
-  // Create or get terminals for current worktree
-  useEffect(() => {
-    if (!worktreeTerminalsCache.has(worktreePath)) {
-      console.log('Creating initial terminal for:', worktreePath);
-      
-      // Create a new terminal instance for this worktree
-      const terminalId = `${worktreePath}-${Date.now()}`;
-      const portalNode = createHtmlPortalNode();
-      const terminal: TerminalInstance = {
-        id: terminalId,
-        worktreePath,
-        portalNode
-      };
-      
-      const worktreeData: WorktreeTerminals = {
-        worktreePath,
-        terminals: [terminal]
-      };
-      
-      // Add to global cache
-      worktreeTerminalsCache.set(worktreePath, worktreeData);
-      
-      // Update state to trigger re-render
-      setWorktreeTerminals(new Map(worktreeTerminalsCache));
-    }
-  }, [worktreePath]);
-
-  // Handle terminal split
-  const handleSplit = useCallback((existingTerminalId: string) => {
-    const worktreeData = worktreeTerminalsCache.get(worktreePath);
-    if (!worktreeData) return;
-
-    console.log('Splitting terminal:', existingTerminalId);
-    
-    // Create a new terminal instance
-    const newTerminalId = `${worktreePath}-${Date.now()}`;
+  const createTerminalNode = useCallback((worktreePath: string): { terminal: TerminalInstance, node: SplitNode } => {
+    const terminalId = `${worktreePath}-${Date.now()}-${Math.random()}`;
     const portalNode = createHtmlPortalNode();
-    const newTerminal: TerminalInstance = {
-      id: newTerminalId,
+    
+    const terminal: TerminalInstance = {
+      id: terminalId,
       worktreePath,
       portalNode
     };
     
-    // Add the new terminal to the list
-    worktreeData.terminals.push(newTerminal);
+    const node: SplitNode = {
+      id: terminalId,
+      type: 'terminal',
+      portalNode
+    };
     
-    // Update state to trigger re-render
-    setWorktreeTerminals(new Map(worktreeTerminalsCache));
-  }, [worktreePath]);
+    return { terminal, node };
+  }, []);
 
-  // Handle terminal close
+  useEffect(() => {
+    if (!worktreeTerminalsCache.has(worktreePath)) {
+      console.log('Creating initial terminal for:', worktreePath);
+      
+      const { terminal, node } = createTerminalNode(worktreePath);
+      
+      const worktreeData: WorktreeTerminals = {
+        worktreePath,
+        terminals: new Map([[terminal.id, terminal]]),
+        rootNode: node
+      };
+      
+      worktreeTerminalsCache.set(worktreePath, worktreeData);
+      setWorktreeTerminals(new Map(worktreeTerminalsCache));
+    }
+  }, [worktreePath, createTerminalNode]);
+
+  const findNodeAndParent = (
+    node: SplitNode, 
+    targetId: string, 
+    parent: SplitNode | null = null
+  ): { node: SplitNode | null, parent: SplitNode | null } => {
+    if (node.id === targetId) {
+      return { node, parent };
+    }
+    
+    if (node.type === 'split' && node.children) {
+      for (const child of node.children) {
+        const result = findNodeAndParent(child, targetId, node);
+        if (result.node) {
+          return result;
+        }
+      }
+    }
+    
+    return { node: null, parent: null };
+  };
+
+  const countTerminals = (node: SplitNode): number => {
+    if (node.type === 'terminal') {
+      return 1;
+    }
+    
+    if (node.type === 'split' && node.children) {
+      return node.children.reduce((count, child) => count + countTerminals(child), 0);
+    }
+    
+    return 0;
+  };
+
+  const handleSplit = useCallback((terminalId: string, direction: SplitDirection) => {
+    const worktreeData = worktreeTerminalsCache.get(worktreePath);
+    if (!worktreeData) return;
+
+    console.log(`Splitting terminal ${terminalId} ${direction}ly`);
+    
+    const { node: targetNode, parent } = findNodeAndParent(worktreeData.rootNode, terminalId);
+    if (!targetNode) return;
+    
+    const { terminal: newTerminal, node: newTerminalNode } = createTerminalNode(worktreePath);
+    
+    worktreeData.terminals.set(newTerminal.id, newTerminal);
+    
+    if (targetNode.type === 'terminal') {
+      const splitNode: SplitNode = {
+        id: `split-${Date.now()}-${Math.random()}`,
+        type: 'split',
+        direction,
+        children: [targetNode, newTerminalNode]
+      };
+      
+      if (parent && parent.type === 'split' && parent.children) {
+        const index = parent.children.findIndex(child => child.id === terminalId);
+        if (index !== -1) {
+          parent.children[index] = splitNode;
+        }
+      } else {
+        worktreeData.rootNode = splitNode;
+      }
+    } else if (targetNode.type === 'split' && targetNode.children) {
+      if (targetNode.direction === direction) {
+        targetNode.children.push(newTerminalNode);
+      } else {
+        const splitNode: SplitNode = {
+          id: `split-${Date.now()}-${Math.random()}`,
+          type: 'split',
+          direction,
+          children: [targetNode, newTerminalNode]
+        };
+        
+        if (parent && parent.type === 'split' && parent.children) {
+          const index = parent.children.findIndex(child => child.id === targetNode.id);
+          if (index !== -1) {
+            parent.children[index] = splitNode;
+          }
+        } else {
+          worktreeData.rootNode = splitNode;
+        }
+      }
+    }
+    
+    setWorktreeTerminals(new Map(worktreeTerminalsCache));
+  }, [worktreePath, createTerminalNode]);
+
+  const removeNodeFromTree = (node: SplitNode, targetId: string): SplitNode | null => {
+    if (node.type === 'terminal') {
+      return node.id === targetId ? null : node;
+    }
+    
+    if (node.type === 'split' && node.children) {
+      const newChildren = node.children
+        .map(child => removeNodeFromTree(child, targetId))
+        .filter((child): child is SplitNode => child !== null);
+      
+      if (newChildren.length === 0) {
+        return null;
+      } else if (newChildren.length === 1) {
+        return newChildren[0];
+      } else {
+        return { ...node, children: newChildren };
+      }
+    }
+    
+    return node;
+  };
+
   const handleClose = useCallback(async (terminalId: string) => {
     const worktreeData = worktreeTerminalsCache.get(worktreePath);
     if (!worktreeData) return;
 
-    // Don't allow closing if it's the last terminal
-    if (worktreeData.terminals.length <= 1) {
+    const terminalCount = countTerminals(worktreeData.rootNode);
+    if (terminalCount <= 1) {
       console.log('Cannot close the last terminal');
       return;
     }
 
     console.log('Closing terminal:', terminalId);
     
-    // Get the process ID for this terminal if it exists
     const processId = terminalProcessIds.current.get(terminalId);
     if (processId) {
       console.log('Terminating PTY for terminal:', terminalId, 'processId:', processId);
@@ -103,38 +197,53 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
       terminalProcessIds.current.delete(terminalId);
     }
     
-    // Remove the terminal from the list
-    worktreeData.terminals = worktreeData.terminals.filter(t => t.id !== terminalId);
+    worktreeData.terminals.delete(terminalId);
     
-    // Update state to trigger re-render
+    const newRoot = removeNodeFromTree(worktreeData.rootNode, terminalId);
+    if (newRoot) {
+      worktreeData.rootNode = newRoot;
+    }
+    
     setWorktreeTerminals(new Map(worktreeTerminalsCache));
   }, [worktreePath]);
 
-  // Callback to track process IDs from terminals
   const handleTerminalProcessId = useCallback((terminalId: string, processId: string) => {
     if (processId) {
       terminalProcessIds.current.set(terminalId, processId);
     }
   }, []);
 
-  // Get current worktree's terminals
-  const currentTerminals = useMemo(() => {
-    const worktreeData = worktreeTerminals.get(worktreePath);
-    return worktreeData?.terminals || [];
+  const currentWorktreeData = useMemo(() => {
+    return worktreeTerminals.get(worktreePath);
   }, [worktreeTerminals, worktreePath]);
 
-  // Get all terminals from all worktrees for rendering InPortals
   const allTerminals = useMemo(() => {
     const terminals: TerminalInstance[] = [];
     worktreeTerminals.forEach(worktreeData => {
-      terminals.push(...worktreeData.terminals);
+      worktreeData.terminals.forEach(terminal => {
+        terminals.push(terminal);
+      });
     });
     return terminals;
   }, [worktreeTerminals]);
 
+  const currentTerminalIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (currentWorktreeData) {
+      currentWorktreeData.terminals.forEach(terminal => {
+        ids.add(terminal.id);
+      });
+    }
+    return ids;
+  }, [currentWorktreeData]);
+
+  const canClose = useMemo(() => {
+    if (!currentWorktreeData) return false;
+    return countTerminals(currentWorktreeData.rootNode) > 1;
+  }, [currentWorktreeData]);
+
   return (
     <div ref={containerRef} className="terminal-manager-root flex-1 h-full relative">
-      {/* Render all terminals into their portals (this happens once per terminal) */}
       {allTerminals.map((terminal) => (
         <InPortal key={terminal.id} node={terminal.portalNode}>
           <ClaudeTerminal
@@ -142,29 +251,24 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
             projectId={projectId}
             theme={theme}
             terminalId={terminal.id}
-            isVisible={currentTerminals.some(t => t.id === terminal.id)}
-            onSplit={() => handleSplit(terminal.id)}
+            isVisible={currentTerminalIds.has(terminal.id)}
+            onSplitVertical={() => handleSplit(terminal.id, 'vertical')}
+            onSplitHorizontal={() => handleSplit(terminal.id, 'horizontal')}
             onClose={() => handleClose(terminal.id)}
-            canClose={currentTerminals.length > 1}
+            canClose={canClose}
             onProcessIdChange={(processId) => handleTerminalProcessId(terminal.id, processId)}
           />
         </InPortal>
       ))}
       
-      {/* Show the current worktree's terminals in a split layout */}
-      <div className="flex h-full">
-        {currentTerminals.map((terminal, index) => (
-          <div
-            key={`out-${terminal.id}`}
-            className="terminal-outportal-wrapper flex-1 h-full relative flex flex-col"
-            style={{
-              borderRight: index < currentTerminals.length - 1 ? '1px solid var(--border)' : 'none'
-            }}
-          >
-            <OutPortal node={terminal.portalNode} />
-          </div>
-        ))}
-      </div>
+      {currentWorktreeData && (
+        <SplitLayout
+          node={currentWorktreeData.rootNode}
+          onSplit={handleSplit}
+          onClose={handleClose}
+          canClose={canClose}
+        />
+      )}
     </div>
   );
 }

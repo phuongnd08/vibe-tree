@@ -6,7 +6,7 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { Code2, Columns2, X } from 'lucide-react';
+import { Code2, Columns2, X, Rows2 } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import '@xterm/xterm/css/xterm.css';
 
@@ -16,7 +16,8 @@ interface ClaudeTerminalProps {
   theme?: 'light' | 'dark';
   isVisible?: boolean;
   terminalId?: string;
-  onSplit?: () => void;
+  onSplitVertical?: () => void;
+  onSplitHorizontal?: () => void;
   onClose?: () => void;
   canClose?: boolean;
   onProcessIdChange?: (processId: string) => void;
@@ -30,7 +31,8 @@ export function ClaudeTerminal({
   theme = 'dark', 
   isVisible = true, 
   terminalId,
-  onSplit,
+  onSplitVertical,
+  onSplitHorizontal,
   onClose,
   canClose = false,
   onProcessIdChange
@@ -461,14 +463,24 @@ export function ClaudeTerminal({
           <p className="text-xs text-muted-foreground truncate">{worktreePath}</p>
         </div>
         <div className="flex items-center gap-1">
-          {onSplit && (
+          {onSplitVertical && (
             <Button
               size="icon"
               variant="ghost"
-              onClick={onSplit}
+              onClick={onSplitVertical}
               title="Split Terminal Vertically"
             >
               <Columns2 className="h-4 w-4" />
+            </Button>
+          )}
+          {onSplitHorizontal && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onSplitHorizontal}
+              title="Split Terminal Horizontally"
+            >
+              <Rows2 className="h-4 w-4" />
             </Button>
           )}
           {canClose && onClose && (
