@@ -42,36 +42,35 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
 
   // Get all terminal portals that have been created
   const allPortals = useMemo(() => Array.from(terminalPortals.values()), [terminalPortals]);
+  
+  // Get the current portal
+  const currentPortal = useMemo(() => 
+    allPortals.find(p => p.worktreePath === worktreePath), 
+    [allPortals, worktreePath]
+  );
 
   return (
-    <div ref={containerRef} className="flex-1 h-full relative">
-      {/* Render all terminals into their portals (this happens once per terminal) */}
-      {allPortals.map((portal) => (
-        <InPortal key={portal.worktreePath} node={portal.portalNode}>
-          <ClaudeTerminal
-            worktreePath={portal.worktreePath}
-            projectId={projectId}
-            theme={theme}
-            isVisible={portal.worktreePath === worktreePath}
-          />
-        </InPortal>
-      ))}
+    <>
+      {/* Hidden container for InPortal elements - outside of the visible area */}
+      <div style={{ display: 'none' }}>
+        {allPortals.map((portal) => (
+          <InPortal key={portal.worktreePath} node={portal.portalNode}>
+            <ClaudeTerminal
+              worktreePath={portal.worktreePath}
+              projectId={projectId}
+              theme={theme}
+              isVisible={portal.worktreePath === worktreePath}
+            />
+          </InPortal>
+        ))}
+      </div>
       
-      {/* Show only the current worktree's terminal via OutPortal */}
-      {allPortals.map((portal) => (
-        <div
-          key={`out-${portal.worktreePath}`}
-          className="absolute inset-0 w-full h-full"
-          style={{
-            display: portal.worktreePath === worktreePath ? 'block' : 'none',
-            visibility: portal.worktreePath === worktreePath ? 'visible' : 'hidden'
-          }}
-        >
-          {portal.worktreePath === worktreePath && (
-            <OutPortal node={portal.portalNode} />
-          )}
-        </div>
-      ))}
-    </div>
+      {/* Visible container for the current terminal */}
+      <div ref={containerRef} className="flex-1 h-full flex flex-col">
+        {currentPortal && (
+          <OutPortal node={currentPortal.portalNode} />
+        )}
+      </div>
+    </>
   );
 }

@@ -490,8 +490,8 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark', isVisible = true 
       {/* Terminal container */}
       <div 
         ref={terminalRef} 
-        className={`flex-1 h-full ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
-        style={{ minHeight: '100px' }}
+        className={`flex-1 ${theme === 'light' ? 'bg-white' : 'bg-black'}`}
+        style={{ minHeight: '100px', height: '100%' }}
       />
     </div>
   );
