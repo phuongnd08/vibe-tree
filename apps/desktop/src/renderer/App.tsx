@@ -65,7 +65,7 @@ function AppContent() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
       <AppHeader theme={theme} onThemeToggle={toggleTheme} />
 
       {projects.length === 0 || showProjectSelector ? (
@@ -74,9 +74,9 @@ function AppContent() {
         <Tabs 
           value={activeProjectId || ''} 
           onValueChange={setActiveProject}
-          className="flex-1 flex flex-col"
+          className="flex-1 flex flex-col overflow-hidden"
         >
-          <div className="border-b flex items-center gap-2 bg-muted/50 h-10">
+          <div className="border-b flex items-center gap-2 bg-muted/50 h-10 flex-shrink-0">
             <TabsList className="h-full bg-transparent p-0 rounded-none">
               {projects.map((project) => (
                 <TabsTrigger
@@ -108,7 +108,8 @@ function AppContent() {
             <TabsContent 
               key={project.id} 
               value={project.id}
-              className="flex-1 m-0 h-full"
+              className="flex-1 m-0 overflow-hidden"
+              style={{ display: activeProjectId === project.id ? 'flex' : 'none', flexDirection: 'column' }}
             >
               <ProjectWorkspace projectId={project.id} theme={theme} />
             </TabsContent>

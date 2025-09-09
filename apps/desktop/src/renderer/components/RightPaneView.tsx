@@ -14,11 +14,11 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
   const [activeTab, setActiveTab] = useState('terminal');
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
       <Tabs 
         value={activeTab} 
         onValueChange={setActiveTab}
-        className="flex-1 flex flex-col"
+        className="flex-1 flex flex-col overflow-hidden"
       >
         <div className="border-b flex items-center bg-muted/50 h-12">
           <TabsList className="h-full bg-transparent p-0 rounded-none ml-4">
@@ -41,7 +41,7 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
 
         <TabsContent 
           value="terminal"
-          className="flex-1 m-0 h-full"
+          className="flex-1 m-0 flex flex-col overflow-hidden"
         >
           <TerminalManager 
             worktreePath={worktreePath} 
@@ -52,7 +52,7 @@ export function RightPaneView({ worktreePath, projectId, theme }: RightPaneViewP
 
         <TabsContent 
           value="git-diff"
-          className="flex-1 m-0 h-full"
+          className="flex-1 m-0 flex flex-col overflow-hidden"
         >
           <GitDiffView worktreePath={worktreePath} theme={theme} />
         </TabsContent>
