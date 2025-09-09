@@ -74,6 +74,10 @@ test.describe('Worktree Terminal Content Preservation', () => {
 
   test('should preserve terminal content when switching between worktrees', async () => {
     test.setTimeout(60000);
+    
+    // Note: With react-reverse-portal implementation, only the current terminal
+    // is present in the DOM via OutPortal. Other terminals are kept alive
+    // in their InPortal containers but not visible in the DOM.
 
     await page.waitForLoadState('domcontentloaded');
 
@@ -159,16 +163,16 @@ test.describe('Worktree Terminal Content Preservation', () => {
     console.log('Waiting 3 seconds for worktree to load...');
     await page.waitForTimeout(3000);
 
-    // Verify we have terminals in wt1 (one visible, one hidden)
+    // Verify we have a terminal in wt1
     console.log('\n--- Checking terminal in wt1 ---');
     terminalContainers = page.locator('.xterm-screen');
     terminalCount = await terminalContainers.count();
     console.log(`Terminal count in wt1: ${terminalCount}`);
     
-    // With the new TerminalManager, we expect 2 terminals (main hidden, wt1 visible)
-    expect(terminalCount).toBe(2);
+    // With react-reverse-portal, only the current terminal is in the DOM via OutPortal
+    expect(terminalCount).toBe(1);
     
-    // Verify exactly one terminal is visible
+    // Verify the terminal is visible
     const visibleTerminals = page.locator('.xterm-screen:visible');
     const visibleCount = await visibleTerminals.count();
     expect(visibleCount).toBe(1);
@@ -202,10 +206,10 @@ test.describe('Worktree Terminal Content Preservation', () => {
     terminalCount = await terminalContainers.count();
     console.log(`Terminal count in main (after switch back): ${terminalCount}`);
     
-    // We should still have 2 terminals (main visible, wt1 hidden)
-    expect(terminalCount).toBe(2);
+    // With react-reverse-portal, only the current terminal is in the DOM via OutPortal
+    expect(terminalCount).toBe(1);
     
-    // Verify exactly one terminal is visible
+    // Verify the terminal is visible
     const visibleTerminalsAfter = page.locator('.xterm-screen:visible');
     const visibleCountAfter = await visibleTerminalsAfter.count();
     expect(visibleCountAfter).toBe(1);
