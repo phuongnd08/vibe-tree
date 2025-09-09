@@ -19,6 +19,8 @@ interface ClaudeTerminalProps {
   onSplit?: () => void;
   onClose?: () => void;
   canClose?: boolean;
+  onProcessIdChange?: (processId: string) => void;
+  isClosing?: boolean;
 }
 
 // Cache for terminal states per worktree
@@ -31,7 +33,9 @@ export function ClaudeTerminal({
   terminalId,
   onSplit,
   onClose,
-  canClose = false
+  canClose = false,
+  onProcessIdChange,
+  isClosing = false
 }: ClaudeTerminalProps) {
   // Log when component renders to verify it only happens once per terminal
   console.log(`[ClaudeTerminal] Rendering terminal for: ${worktreePath}`);
@@ -225,16 +229,18 @@ export function ClaudeTerminal({
   }, [terminal, worktreePath]);
 
 
-  // Handle terminal cleanup when the component is unmounted or closed
+  // Track process ID in state for proper effect dependencies
+  const [currentProcessId, setCurrentProcessId] = useState<string>('');
+  
+  // Notify parent about process ID changes
   useEffect(() => {
-    return () => {
-      // When the terminal is being closed/unmounted, terminate the PTY session
-      if (processIdRef.current && onClose) {
-        console.log(`[ClaudeTerminal] Terminating PTY session: ${processIdRef.current}`);
-        window.electronAPI.shell.terminate(processIdRef.current);
-      }
-    };
-  }, [onClose]);
+    if (currentProcessId && onProcessIdChange) {
+      onProcessIdChange(currentProcessId);
+    }
+  }, [currentProcessId, onProcessIdChange]);
+
+  // Terminal cleanup is now handled by TerminalManager when closing
+  // This component no longer handles PTY termination directly
 
   // Auto-start shell when worktree changes
   useEffect(() => {
@@ -258,6 +264,7 @@ export function ClaudeTerminal({
         }
 
         processIdRef.current = result.processId!;
+        setCurrentProcessId(result.processId!);
         console.log(`Shell started: ${result.processId}, isNew: ${result.isNew}, worktree: ${worktreePath}`);
 
         // Handle terminal state

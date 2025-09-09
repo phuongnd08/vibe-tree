@@ -12,6 +12,7 @@ interface TerminalInstance {
   id: string;
   worktreePath: string;
   portalNode: HtmlPortalNode;
+  processId?: string;
 }
 
 interface WorktreeTerminals {
@@ -22,9 +23,13 @@ interface WorktreeTerminals {
 // Global cache for terminal portals - persists across component re-renders
 const worktreeTerminalsCache = new Map<string, WorktreeTerminals>();
 
+// Track terminals that are being closed to handle cleanup properly
+const closingTerminals = new Set<string>();
+
 export function TerminalManager({ worktreePath, projectId, theme }: TerminalManagerProps) {
   const [worktreeTerminals, setWorktreeTerminals] = useState<Map<string, WorktreeTerminals>>(worktreeTerminalsCache);
   const containerRef = useRef<HTMLDivElement>(null);
+  const terminalProcessIds = useRef<Map<string, string>>(new Map());
 
   // Create or get terminals for current worktree
   useEffect(() => {
@@ -77,7 +82,7 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
   }, [worktreePath]);
 
   // Handle terminal close
-  const handleClose = useCallback((terminalId: string) => {
+  const handleClose = useCallback(async (terminalId: string) => {
     const worktreeData = worktreeTerminalsCache.get(worktreePath);
     if (!worktreeData) return;
 
@@ -89,12 +94,37 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
 
     console.log('Closing terminal:', terminalId);
     
+    // Mark terminal as closing
+    closingTerminals.add(terminalId);
+    
+    // Get the process ID for this terminal if it exists
+    const processId = terminalProcessIds.current.get(terminalId);
+    if (processId) {
+      console.log('Terminating PTY for terminal:', terminalId, 'processId:', processId);
+      try {
+        await window.electronAPI.shell.terminate(processId);
+      } catch (error) {
+        console.error('Error terminating PTY:', error);
+      }
+      terminalProcessIds.current.delete(terminalId);
+    }
+    
     // Remove the terminal from the list
     worktreeData.terminals = worktreeData.terminals.filter(t => t.id !== terminalId);
+    
+    // Remove from closing set
+    closingTerminals.delete(terminalId);
     
     // Update state to trigger re-render
     setWorktreeTerminals(new Map(worktreeTerminalsCache));
   }, [worktreePath]);
+
+  // Callback to track process IDs from terminals
+  const handleTerminalProcessId = useCallback((terminalId: string, processId: string) => {
+    if (processId) {
+      terminalProcessIds.current.set(terminalId, processId);
+    }
+  }, []);
 
   // Get current worktree's terminals
   const currentTerminals = useMemo(() => {
@@ -125,6 +155,8 @@ export function TerminalManager({ worktreePath, projectId, theme }: TerminalMana
             onSplit={() => handleSplit(terminal.id)}
             onClose={() => handleClose(terminal.id)}
             canClose={currentTerminals.length > 1}
+            onProcessIdChange={(processId) => handleTerminalProcessId(terminal.id, processId)}
+            isClosing={closingTerminals.has(terminal.id)}
           />
         </InPortal>
       ))}
