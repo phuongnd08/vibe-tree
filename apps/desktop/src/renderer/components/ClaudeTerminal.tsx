@@ -297,30 +297,9 @@ export function ClaudeTerminal({ worktreePath, theme = 'dark', isVisible = true 
           }
         });
 
-        // Set up output listener with special handling for Claude
-        let lastWasClear = false;
+        // Set up output listener - simply pass data to terminal
         const removeOutputListener = window.electronAPI.shell.onOutput(result.processId!, (data) => {
-          // Check if Claude is trying to clear the screen
-          if (data.includes('\x1b[2J') && data.includes('\x1b[H')) {
-            // Claude is clearing screen and moving cursor home
-            terminal.clear();
-            terminal.write('\x1b[H');
-            lastWasClear = true;
-            
-            // Write any remaining data after the clear sequence
-            // eslint-disable-next-line no-control-regex
-            const afterClear = data.split(/\x1b\[2J.*?\x1b\[H/)[1];
-            if (afterClear) {
-              terminal.write(afterClear);
-            }
-          } else if (lastWasClear && data.startsWith('\n')) {
-            // Skip extra newlines after clear
-            lastWasClear = false;
-            terminal.write(data.substring(1));
-          } else {
-            lastWasClear = false;
-            terminal.write(data);
-          }
+          terminal.write(data);
         });
 
         // Set up exit listener
