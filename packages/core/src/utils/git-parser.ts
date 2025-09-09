@@ -13,7 +13,9 @@ export function parseWorktrees(output: string): Worktree[] {
   for (const line of lines) {
     if (line.startsWith('worktree ')) {
       // If we have a complete worktree, add it to the array
-      if (current.path && current.branch && current.head) {
+      // A worktree is complete if it has at least a path and head
+      // Branch is optional (can be undefined for detached HEAD)
+      if (current.path && current.head) {
         worktrees.push(current as Worktree);
       }
       // Start a new worktree entry
@@ -26,7 +28,9 @@ export function parseWorktrees(output: string): Worktree[] {
   }
 
   // Add the last worktree if complete
-  if (current.path && current.branch && current.head) {
+  // A worktree is complete if it has at least a path and head
+  // Branch is optional (can be undefined for detached HEAD)
+  if (current.path && current.head) {
     worktrees.push(current as Worktree);
   }
 

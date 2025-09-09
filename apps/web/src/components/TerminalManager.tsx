@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { TerminalView } from './TerminalView';
 
 interface TerminalManagerProps {
-  worktrees: Array<{ path: string; branch: string; head: string }>;
+  worktrees: Array<{ path: string; branch?: string; head: string }>;
   selectedWorktree: string | null;
 }
 

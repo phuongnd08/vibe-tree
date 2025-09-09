@@ -320,12 +320,18 @@ importers:
       '@types/node':
         specifier: ^20.11.5
         version: 20.19.11
+      '@vitest/ui':
+        specifier: ^3.2.4
+        version: 3.2.4(vitest@3.2.4)
       esbuild:
         specifier: ^0.25.9
         version: 0.25.9
       typescript:
         specifier: ^5.3.3
         version: 5.9.2
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/node@20.19.11)(@vitest/ui@3.2.4)
 
   packages/ui:
     dependencies:
